@@ -224,9 +224,10 @@ NationalCarbonBudgets <-
   foreach(f = seq(0,1,0.05), .combine = "rbind") %:%
   foreach(y = c(0,seq(1990,2021,5)), .combine = "rbind") %:%
   foreach(c = CountryAssumptions$Country[CountryAssumptions$Country != "World"], .combine = "rbind") %dopar% {
+    GlobalNetZero <- 2022 + 2 * CarbonBudget$BudgetGtCO2[CarbonBudget$TempTarget == t]*1000 / DataGlobalCarbonBudget$EmissionsMtCO2[DataGlobalCarbonBudget$Country == "World" & DataGlobalCarbonBudget$Accounting == "World" & DataGlobalCarbonBudget$Year == 2021]
     if (a == "Equal Cumulative per Capita" & y != 0) {
       NationalCarbonBudget = (CarbonBudget$BudgetGtCO2[CarbonBudget$TempTarget == t] * 1e3 + sum(DataGlobalCarbonBudget$EmissionsMtCO2[DataGlobalCarbonBudget$Country == "World" & DataGlobalCarbonBudget$Accounting == "World" & DataGlobalCarbonBudget$Year %in% y:2021])) * 
-        sum(DataUNPopulation$Population[DataUNPopulation$Country == c & DataUNPopulation$Year %in% y:2100]) / sum(DataUNPopulation$Population[DataUNPopulation$Country == "World" & DataUNPopulation$Year %in% y:2100]) -
+        sum(DataUNPopulation$Population[DataUNPopulation$Country == c & DataUNPopulation$Year %in% y:ceiling(GlobalNetZero)]) / sum(DataUNPopulation$Population[DataUNPopulation$Country == "World" & DataUNPopulation$Year %in% y:ceiling(GlobalNetZero)]) -
         (sum(DataGlobalCarbonBudget$EmissionsMtCO2[DataGlobalCarbonBudget$Country == c & DataGlobalCarbonBudget$Year %in% y:2021 & DataGlobalCarbonBudget$Accounting == "Territorial Emissions"])*(1-f) +
            sum(DataGlobalCarbonBudget$EmissionsMtCO2[DataGlobalCarbonBudget$Country == c & DataGlobalCarbonBudget$Year %in% y:2021 & DataGlobalCarbonBudget$Accounting == "Consumption Emissions"])*f)
     } else if (a == "Contraction and Convergence" & y == 0) {
@@ -522,7 +523,7 @@ ResultsSampleCountries <- ggplot(data = DataSampleCountries) +
                                   axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 0.5, color = "black"),
                                   axis.text.y = element_text(color = "black"))
 
-png(filename = "ResultsSampleCountries.png", width = 88*2, height = 85, units = "mm", res = 500)
+png(filename = "Graphs/ResultsSampleCountries.png", width = 88*2, height = 85, units = "mm", res = 500)
 print(ResultsSampleCountries)
 dev.off()
 
@@ -546,7 +547,7 @@ TrendsSampleCountries <- ggplot() +
                                   strip.text = element_text(color = "white"),
                                   axis.text = element_text(color = "black"))
 
-png(filename = "TrendsSampleCountries.png", width = 88*2, height = 60, units = "mm", res = 500)
+png(filename = "Graphs/TrendsSampleCountries.png", width = 88*2, height = 60, units = "mm", res = 500)
 print(TrendsSampleCountries)
 dev.off()
 
@@ -589,7 +590,7 @@ for (t in c(1.5,2)) {
                                     strip.background = element_rect(fill = "black", color = "transparent"),
                                     strip.text = element_text(color = "white"))
   
-  png(filename = paste0("ResultsCompareTargets",t,a,".png"), width = 6, height = 4, units = "in", res = 300)
+  png(filename = paste0("Graphs/ResultsCompareTargets",t,a,".png"), width = 6, height = 4, units = "in", res = 300)
   print(ResultsCompareTargets)
   dev.off()
   }
@@ -600,7 +601,7 @@ DataForSupplementary$Country <- as.character(DataForSupplementary$Country)
 DataForSupplementary <- DataForSupplementary[order(DataForSupplementary$TempTarget, DataForSupplementary$AllocationPrinciple, DataForSupplementary$HistoricResponsibility, DataForSupplementary$EconDevelopment, DataForSupplementary$Country, decreasing = FALSE), ]
 DataForSupplementary$HistoricResponsibility[DataForSupplementary$HistoricResponsibility == 0] <- NA
 DataForSupplementary <- DataForSupplementary[, c(1,2,3,4,5,6,8,7,9)]
-write.xlsx(DataForSupplementary, "DataForSupplementary.xlsx", row.names = FALSE, showNA = FALSE)
+write.xlsx(DataForSupplementary, "Graphs/DataForSupplementary.xlsx", row.names = FALSE, showNA = FALSE)
 
 for (t in c(1.5,2)) {
   PlotCarbonBudgets <- ggplot(data = rbind(cbind(LargeBudgets = TRUE, subset(NationalCarbonBudgets, TempTarget == t & AccountingFramework %in% c(0,1) & Country != "Rest of world" & HistoricResponsibility %in% c(0,1990,2000,2010) & Country %in% CountryAssumptions$Country[CountryAssumptions$EUMemberState == FALSE] & Country %in% c("United States", "China", "India", "European Union"))),
@@ -617,7 +618,7 @@ for (t in c(1.5,2)) {
                                       strip.background.y = element_blank(),
                                       strip.text.y = element_blank())
   
-  png(filename = paste0("ResultsCarbonBudgets",t,".png"), width = 8.38, height = 5.11, units = "in", res = 300)
+  png(filename = paste0("Graphs/ResultsCarbonBudgets",t,".png"), width = 8.38, height = 5.11, units = "in", res = 300)
   print(PlotCarbonBudgets)
   dev.off()
   
@@ -635,7 +636,7 @@ for (t in c(1.5,2)) {
                                       strip.background.y = element_blank(),
                                       strip.text.y = element_blank())
   
-  png(filename = paste0("ResultsCarbonBudgetsEU",t,".png"), width = 8.38, height = 5.11, units = "in", res = 300)
+  png(filename = paste0("Graphs/ResultsCarbonBudgetsEU",t,".png"), width = 8.38, height = 5.11, units = "in", res = 300)
   print(PlotCarbonBudgetsEU)
   dev.off()
   
@@ -658,7 +659,7 @@ for (t in c(1.5,2)) {
                                       strip.text = element_text(color = "white"),
                                       axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
   
-  png(filename = paste0("ResultsAllCountries",t,".png"), width = 8.38, height = 5.11, units = "in", res = 300)
+  png(filename = paste0("Graphs/ResultsAllCountries",t,".png"), width = 8.38, height = 5.11, units = "in", res = 300)
   print(ResultsAllCountries)
   dev.off()
 
@@ -681,7 +682,7 @@ for (t in c(1.5,2)) {
                                       strip.text = element_text(color = "white"),
                                       axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
   
-  png(filename = paste0("ResultsEUMemberStates",t,".png"), width = 8.38, height = 5.11, units = "in", res = 300)
+  png(filename = paste0("Graphs/ResultsEUMemberStates",t,".png"), width = 8.38, height = 5.11, units = "in", res = 300)
   print(ResultsEUMemberStates)
   dev.off()
 }
