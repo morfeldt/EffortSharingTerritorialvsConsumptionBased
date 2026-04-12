@@ -180,8 +180,8 @@ AnnualCapability <- function(Country, TempTarget) {
                        if (Country == "World") {1} else {
                          (DataSSPFutureGDP$Value[DataSSPFutureGDP$Scenario == "SSP2" & DataSSPFutureGDP$Region == CountryAssumptions$iso3c[CountryAssumptions$Country == Country] & DataSSPFutureGDP$Year == Year & DataSSPFutureGDP$Variable == "Population"]^2 / 
                             DataSSPFutureGDP$Value[DataSSPFutureGDP$Scenario == "SSP2" & DataSSPFutureGDP$Region == CountryAssumptions$iso3c[CountryAssumptions$Country == Country] & DataSSPFutureGDP$Year == Year & DataSSPFutureGDP$Variable == "GDP|PPP"]) /
-                           sum(DataSSPFutureGDP$Value[DataSSPFutureGDP$Scenario == "SSP2" & DataSSPFutureGDP$Region %in% CountryAssumptions$iso3c[CountryAssumptions$EUMemberState == FALSE & CountryAssumptions$Country != "World"] & DataSSPFutureGDP$Year == Year & DataSSPFutureGDP$Variable == "Population"]^2 / 
-                                 DataSSPFutureGDP$Value[DataSSPFutureGDP$Scenario == "SSP2" & DataSSPFutureGDP$Region %in% CountryAssumptions$iso3c[CountryAssumptions$EUMemberState == FALSE & CountryAssumptions$Country != "World"] & DataSSPFutureGDP$Year == Year & DataSSPFutureGDP$Variable == "GDP|PPP"])
+                           sum(DataSSPFutureGDP$Value[DataSSPFutureGDP$Scenario == "SSP2" & DataSSPFutureGDP$Region %in% CountryAssumptions$iso3c[!CountryAssumptions$Country %in% c("World", "European Union")] & DataSSPFutureGDP$Year == Year & DataSSPFutureGDP$Variable == "Population"]^2 / 
+                                 DataSSPFutureGDP$Value[DataSSPFutureGDP$Scenario == "SSP2" & DataSSPFutureGDP$Region %in% CountryAssumptions$iso3c[!CountryAssumptions$Country %in% c("World", "European Union")] & DataSSPFutureGDP$Year == Year & DataSSPFutureGDP$Variable == "GDP|PPP"])
                        })
   }
   TotalBudget = sum(AnnualBudget)
@@ -527,6 +527,108 @@ png(filename = "Graphs/ResultsSampleCountries.png", width = 88*2, height = 85, u
 print(ResultsSampleCountries)
 dev.off()
 
+SampleCountries <- c("Sweden", "European Union", "United States", "China", "South Africa", "World")
+DataTrendsSampleCountries <- bind_rows(
+  subset(DataGlobalCarbonBudget, Country %in% SampleCountries | Country == "World" & Accounting == "World", select = c("Country", "Year", "Accounting", "EmissionsMtCO2")) %>%
+    rename(
+      Indicator = Accounting,
+      Value = EmissionsMtCO2
+    ) %>%
+  mutate(Source = "GCP"),
+  subset(DataUNPopulation, Country %in% SampleCountries & Year >= 1990, select = c("Country", "Year", "Population")) %>%
+    rename(Value = Population) %>%
+    mutate(Indicator = "Population",
+           Source = "UN") %>%
+    select(Country, Year, Source, Indicator, Value),
+  subset(DataWorldBank, Country %in% SampleCountries & Year <= 2021 & Year >= 1990, select = c("Country", "Year", "GDP")) %>%
+    rename(Value = GDP) %>%
+    mutate(Indicator = "GDP",
+           Source = "WorldBank") %>%
+    select(Country, Year, Source, Indicator, Value),
+  subset(DataSSPFutureGDP, Region %in% CountryAssumptions$iso3c[CountryAssumptions$Country %in% SampleCountries] & Year >= 2021 & Scenario == "SSP2" & Variable == "Population", select = c("Region", "Year", "Value")) %>%
+    left_join(CountryAssumptions %>%
+                select(Country, iso3c) %>%
+                rename(Region = iso3c), by = c("Region")) %>%
+    mutate(Indicator = "Population",
+           Source = "SSP2",
+           Value = Value*1e6) %>%
+    select(Country, Year, Source, Indicator, Value),
+  subset(DataSSPFutureGDP, Region %in% CountryAssumptions$iso3c[CountryAssumptions$Country %in% SampleCountries] & Year >= 2021 & Scenario == "SSP2" & Variable == "GDP|PPP", select = c("Region", "Year", "Value")) %>%
+    left_join(CountryAssumptions %>%
+                select(Country, iso3c) %>%
+                rename(Region = iso3c), by = c("Region")) %>%
+    mutate(Indicator = "GDP",
+           Source = "SSP2",
+           Value = Value*1e9) %>%
+    select(Country, Year, Source, Indicator, Value)
+)
+
+DataTrendsSampleCountries <- bind_rows(DataTrendsSampleCountries %>%
+                                         transmute(Country, Year, Source, Indicator, Type = "Total", Value),
+                                       subset(DataTrendsSampleCountries, Source != "SSP2") %>%
+                                         filter(Indicator %in% c("Territorial Emissions", "Consumption Emissions", "World")) %>%   # <-- adjust if your accounting labels differ
+                                         transmute(Country, Year, Source, Indicator, Type = NA, EmissionsMtCO2 = Value) %>%
+                                         left_join(subset(DataTrendsSampleCountries, Source != "SSP2") %>%
+                                                     filter(Indicator == "Population") %>%
+                                                     transmute(Country, Year, Population = Value), by = c("Country", "Year")) %>%
+                                         mutate(
+                                           Type = "PerCapita",
+                                           Value = (EmissionsMtCO2 * 1e6) / Population    # MtCO2 -> tCO2; divide by persons => tCO2/person
+                                         ) %>%
+                                         select(Country, Year, Source, Indicator, Type, Value),
+                                       subset(DataTrendsSampleCountries, Source != "SSP2") %>%
+                                         filter(Indicator == "GDP") %>%
+                                         transmute(Country, Year, Source, Indicator, Type = NA, GDP = Value) %>%
+                                         left_join(subset(DataTrendsSampleCountries, Source != "SSP2") %>%
+                                                     filter(Indicator == "Population") %>%
+                                                     transmute(Country, Year, Population = Value), by = c("Country", "Year")) %>%
+                                         mutate(
+                                           Type = "PerCapita",
+                                           Value = GDP / Population
+                                         ) %>%
+                                         select(Country, Year, Source, Indicator, Type, Value)
+)
+
+DataTrendsSampleCountries <- DataTrendsSampleCountries %>%
+  left_join(DataTrendsSampleCountries %>%
+              filter(Year == 2021) %>%
+              select(Country, Source, Indicator, Type, base_value = Value),
+            by = c("Country", "Source", "Indicator", "Type")) %>%
+  mutate(IndexValue = Value / base_value) %>%
+  select(Country, Year, Source, Indicator, Type, Value, IndexValue)
+
+DataTrendsSampleCountries$Indicator <- factor(DataTrendsSampleCountries$Indicator, 
+                                              levels = c("Territorial Emissions", 
+                                                         "Consumption Emissions",
+                                                         "World",
+                                                         "Population",
+                                                         "GDP"),
+                                              labels = c("Territorial emissions",
+                                                         "Consumption-based emissions",
+                                                         "World average emissions",
+                                                         "Population",
+                                                         "GDP"
+                                                         ))
+
+TrendsSampleCountries <- ggplot() +
+  geom_line(data = subset(DataTrendsSampleCountries, Country != "World" & Type == "Total"), mapping = aes(x = Year, y = IndexValue, color = Indicator, linetype = Source)) +
+  geom_line(data = subset(DataTrendsSampleCountries, Country == "World" & Type == "Total", select = -Country), mapping = aes(x = Year, y = IndexValue, color = Indicator, linetype = Source)) +
+  geom_line(data = subset(DataTrendsSampleCountries, Country != "World" & Indicator != "GDP" & Type == "PerCapita"), mapping = aes(x = Year, y = Value, color = Indicator, linetype = Source)) +
+  geom_line(data = subset(DataTrendsSampleCountries, Country == "World" & Indicator != "GDP" & Type == "PerCapita", select = -Country), mapping = aes(x = Year, y = Value, color = Indicator, linetype = Source)) +
+  
+  facet_grid2(Type~Country, scales = "free", independent = TRUE) +
+  scale_y_continuous(limits = c(0, NA), n.breaks = 6) +
+  scale_linetype_manual(values = c("dashed", "dotdash", "dotted", "longdash", "solid")) +
+  scale_color_manual(values = c(scico(4, palette = "batlow"),"black")) +
+  guides(linetype = guide_legend(nrow = 1), color = guide_legend(nrow = 1)) +
+  labs(x = "Year", y = expression(paste("Index [2021 = 1]                               Emissions per capita (t",CO[2], ")")), linetype = "", color = "") +
+  theme_bw(base_size = 9) + theme(legend.position = "bottom",
+                                  strip.background = element_rect(fill = "black", color = "transparent"),
+                                  strip.text = element_text(color = "white"),
+                                  axis.text = element_text(color = "black"))
+
+
+
 TrendsSampleCountries <- ggplot() +
   geom_line(data = merge(subset(DataGlobalCarbonBudget, Country %in% c("Sweden", "European Union", "United States", "China", "South Africa")), subset(DataUNPopulation, Country %in% c("Sweden", "European Union", "United States", "China", "South Africa")), by = c("Year", "Country")),
             mapping = aes(x = Year, y = EmissionsMtCO2/Population*1e6, linetype = Accounting, color = Accounting)) +
@@ -551,61 +653,65 @@ png(filename = "Graphs/TrendsSampleCountries.png", width = 88*2, height = 60, un
 print(TrendsSampleCountries)
 dev.off()
 
-DataForSupplementary <- data.frame()
+if (file.exists("Graphs/DataForSupplementary.xlsx")) {
+  file.remove("Graphs/DataForSupplementary.xlsx")
+}
 for (t in c(1.5,2)) {
   for (a in c("All", "EU")) {
-  PlotDataCompareTargets <- cbind(subset(NationalCarbonBudgets, Country %in% CountryAssumptions$Country[CountryAssumptions$iso3c != "ROW" & CountryAssumptions$EUMemberState == ifelse(a == "All", FALSE, TRUE)] & TempTarget == t & HistoricResponsibility %in% c(0,1990,2000,2010) & AccountingFramework == 1 & AllocationPrinciple != "Grandfathering"),
-                                  TerritorialNetZero = subset(NationalCarbonBudgets, Country %in% CountryAssumptions$Country[CountryAssumptions$iso3c != "ROW" & CountryAssumptions$EUMemberState == ifelse(a == "All", FALSE, TRUE)] & TempTarget == t & HistoricResponsibility %in% c(0,1990,2000,2010) & AccountingFramework == 0 & AllocationPrinciple != "Grandfathering")$ImplicitNetZero,
-                                  TerritorialBudget = subset(NationalCarbonBudgets, Country %in% CountryAssumptions$Country[CountryAssumptions$iso3c != "ROW" & CountryAssumptions$EUMemberState == ifelse(a == "All", FALSE, TRUE)] & TempTarget == t & HistoricResponsibility %in% c(0,1990,2000,2010) & AccountingFramework == 0 & AllocationPrinciple != "Grandfathering")$NationalCarbonBudget,
-                                  CombHistOther = NA)
-  PlotDataCompareTargets$CombHistOther[PlotDataCompareTargets$HistoricResponsibility == 0] <- as.character(PlotDataCompareTargets$AllocationPrinciple[PlotDataCompareTargets$HistoricResponsibility == 0])
-  PlotDataCompareTargets$CombHistOther[PlotDataCompareTargets$AllocationPrinciple == "Annual Equal per Capita"] <- "Annual Equality"
-  PlotDataCompareTargets$CombHistOther[PlotDataCompareTargets$HistoricResponsibility != 0] <- paste0("Historic Responsibility from ",as.character(PlotDataCompareTargets$HistoricResponsibility[PlotDataCompareTargets$HistoricResponsibility != 0]))
-  DataForSupplementary <- rbind(DataForSupplementary, subset(PlotDataCompareTargets, select = c("TempTarget", "AllocationPrinciple", "HistoricResponsibility", "EconDevelopment", "Country", "ImplicitNetZero", "NationalCarbonBudget", "TerritorialNetZero", "TerritorialBudget")))
-  ResultsCompareTargets <- ggplot() +
-    geom_abline(intercept = 0, slope = 1, color = "gray") +
-    annotate("rect", xmin = 2088, xmax = 2102, ymin = 2025, ymax = 2050, fill = "lightgray") +
-    annotate("rect", xmin = 2018, xmax = 2032, ymin = 2080, ymax = 2100, fill = "lightgray") +
-    geom_point(data = PlotDataCompareTargets, mapping = aes(y = ifelse(NationalCarbonBudget<0 & EconDevelopment == "High", 2090, ifelse(NationalCarbonBudget<0 & EconDevelopment == "Upper-middle", 2085, ifelse((ImplicitNetZero>2100|TerritorialNetZero>2100) & EconDevelopment == "Low", 2040, ifelse((ImplicitNetZero>2100|TerritorialNetZero>2100) & EconDevelopment == "Lower-middle", 2035, ifelse((ImplicitNetZero>2100|TerritorialNetZero>2100) & EconDevelopment == "Upper-middle", 2030, ifelse((ImplicitNetZero>2100|TerritorialNetZero>2100) & EconDevelopment == "High", 2025, TerritorialNetZero)))))), 
-                                                            x = ifelse(NationalCarbonBudget<0, 2025, ifelse(ImplicitNetZero>2100|TerritorialNetZero>2100, 2095, ImplicitNetZero)), 
-                                                            color = EconDevelopment)) +
-    geom_text(data = as.data.frame(table(subset(PlotDataCompareTargets, ImplicitNetZero>2100 | TerritorialNetZero>2100, select = c(EconDevelopment, CombHistOther)))),
-              mapping = aes(label = ifelse(Freq != 0, Freq, ""), x = 2097, y = ifelse(EconDevelopment == "Low", 2040, ifelse(EconDevelopment == "Lower-middle", 2035, ifelse(EconDevelopment == "Upper-middle", 2030, 2025)))), hjust = 0, vjust = 0.5, size = 2) +
-    annotate("text", x = 2095, y = 2045, label = ">2100", size = 2) +
-    geom_text(data = as.data.frame(table(subset(PlotDataCompareTargets, NationalCarbonBudget<0, select = c(EconDevelopment, CombHistOther)))),
-              mapping = aes(label = ifelse(Freq != 0, Freq, ""), x = 2027, y = ifelse(EconDevelopment == "Low", 2075, ifelse(EconDevelopment == "Lower-middle", 2080, ifelse(EconDevelopment == "Upper-middle", 2085, 2090)))), hjust = 0, vjust = 0.5, size = 2) +
-    annotate("text", x = 2025, y = 2095, label = expression(paste("<0 ",CO[2])), size = 2) +
-    geom_text_repel(size = 2, data = subset(PlotDataCompareTargets, abs(TerritorialNetZero - ImplicitNetZero) > 4 & TerritorialNetZero < 2100 & ImplicitNetZero < 2100), 
-                    mapping = aes(y = TerritorialNetZero, x = ImplicitNetZero, label = Country), 
-                    nudge_x = 0.5, nudge_y = 0.5, min.segment.length = 0, max.overlaps = 30, xlim = c(2020,2100), ylim = c(2020,2100)) +
-    geom_text(size = 2.5, color = "black", data = data.frame(CombHistOther = c("Annual Equality", "Capability", "Contraction and Convergence", "Historic Responsibility from 1990", "Historic Responsibility from 2000", "Historic Responsibility from 2010"),
-                                                             Label = c("a)", "b)", "c)", "d)", "e)", "f)")),
-              mapping = aes(x = 2018, y = 2022, label = Label)) +
-    facet_wrap(~CombHistOther, labeller = labeller(HistoricResponsibility = LabelHistoricResponsibility)) +
-    scale_color_manual(values = scico(4, palette = "roma")[1:ifelse(a=="All", 4,2)]) +
-    coord_cartesian(xlim = c(2018,2100), ylim = c(2018,2100)) +
-    labs(y = "Producing countries bear responsibility", x = "Consuming countries bear responsibility", color = "Economic development") +
-    theme_bw(base_size = 9) + theme(legend.position = "bottom",
-                                    legend.margin = margin(0,0,0,0),
-                                    strip.background = element_rect(fill = "black", color = "transparent"),
-                                    strip.text = element_text(color = "white"))
-  
-  png(filename = paste0("Graphs/ResultsCompareTargets",t,a,".png"), width = 6, height = 4, units = "in", res = 300)
-  print(ResultsCompareTargets)
-  dev.off()
+    DataForSupplementary <- data.frame()
+    PlotDataCompareTargets <- cbind(subset(NationalCarbonBudgets, Country %in% CountryAssumptions$Country[CountryAssumptions$iso3c != "ROW" & CountryAssumptions$EUMemberState == ifelse(a == "All", FALSE, TRUE)] & TempTarget == t & HistoricResponsibility %in% c(0,1990,2000,2010) & AccountingFramework == 1 & AllocationPrinciple != "Grandfathering"),
+                                    TerritorialNetZero = subset(NationalCarbonBudgets, Country %in% CountryAssumptions$Country[CountryAssumptions$iso3c != "ROW" & CountryAssumptions$EUMemberState == ifelse(a == "All", FALSE, TRUE)] & TempTarget == t & HistoricResponsibility %in% c(0,1990,2000,2010) & AccountingFramework == 0 & AllocationPrinciple != "Grandfathering")$ImplicitNetZero,
+                                    TerritorialBudget = subset(NationalCarbonBudgets, Country %in% CountryAssumptions$Country[CountryAssumptions$iso3c != "ROW" & CountryAssumptions$EUMemberState == ifelse(a == "All", FALSE, TRUE)] & TempTarget == t & HistoricResponsibility %in% c(0,1990,2000,2010) & AccountingFramework == 0 & AllocationPrinciple != "Grandfathering")$NationalCarbonBudget,
+                                    CombHistOther = NA)
+    PlotDataCompareTargets$CombHistOther[PlotDataCompareTargets$HistoricResponsibility == 0] <- as.character(PlotDataCompareTargets$AllocationPrinciple[PlotDataCompareTargets$HistoricResponsibility == 0])
+    PlotDataCompareTargets$CombHistOther[PlotDataCompareTargets$AllocationPrinciple == "Annual Equal per Capita"] <- "Annual Equality"
+    PlotDataCompareTargets$CombHistOther[PlotDataCompareTargets$HistoricResponsibility != 0] <- paste0("Historic Responsibility from ",as.character(PlotDataCompareTargets$HistoricResponsibility[PlotDataCompareTargets$HistoricResponsibility != 0]))
+    DataForSupplementary <- rbind(DataForSupplementary, cbind(subset(PlotDataCompareTargets, select = c("AllocationPrinciple", "HistoricResponsibility", "EconDevelopment", "Country", "ImplicitNetZero", "NationalCarbonBudget", "TerritorialNetZero", "TerritorialBudget")), DifferenceNetZeros = 0))
+    ResultsCompareTargets <- ggplot() +
+      geom_abline(intercept = 0, slope = 1, color = "gray") +
+      annotate("rect", xmin = 2088, xmax = 2102, ymin = 2025, ymax = 2050, fill = "lightgray") +
+      annotate("rect", xmin = 2018, xmax = 2032, ymin = 2080, ymax = 2100, fill = "lightgray") +
+      geom_point(data = PlotDataCompareTargets, mapping = aes(y = ifelse(NationalCarbonBudget<0 & EconDevelopment == "High", 2090, ifelse(NationalCarbonBudget<0 & EconDevelopment == "Upper-middle", 2085, ifelse((ImplicitNetZero>2100|TerritorialNetZero>2100) & EconDevelopment == "Low", 2040, ifelse((ImplicitNetZero>2100|TerritorialNetZero>2100) & EconDevelopment == "Lower-middle", 2035, ifelse((ImplicitNetZero>2100|TerritorialNetZero>2100) & EconDevelopment == "Upper-middle", 2030, ifelse((ImplicitNetZero>2100|TerritorialNetZero>2100) & EconDevelopment == "High", 2025, TerritorialNetZero)))))), 
+                                                              x = ifelse(NationalCarbonBudget<0, 2025, ifelse(ImplicitNetZero>2100|TerritorialNetZero>2100, 2095, ImplicitNetZero)), 
+                                                              color = EconDevelopment)) +
+      geom_text(data = as.data.frame(table(subset(PlotDataCompareTargets, ImplicitNetZero>2100 | TerritorialNetZero>2100, select = c(EconDevelopment, CombHistOther)))),
+                mapping = aes(label = ifelse(Freq != 0, Freq, ""), x = 2097, y = ifelse(EconDevelopment == "Low", 2040, ifelse(EconDevelopment == "Lower-middle", 2035, ifelse(EconDevelopment == "Upper-middle", 2030, 2025)))), hjust = 0, vjust = 0.5, size = 2) +
+      annotate("text", x = 2095, y = 2045, label = ">2100", size = 2) +
+      geom_text(data = as.data.frame(table(subset(PlotDataCompareTargets, NationalCarbonBudget<0, select = c(EconDevelopment, CombHistOther)))),
+                mapping = aes(label = ifelse(Freq != 0, Freq, ""), x = 2027, y = ifelse(EconDevelopment == "Low", 2075, ifelse(EconDevelopment == "Lower-middle", 2080, ifelse(EconDevelopment == "Upper-middle", 2085, 2090)))), hjust = 0, vjust = 0.5, size = 2) +
+      annotate("text", x = 2025, y = 2095, label = expression(paste("<0 ",CO[2])), size = 2) +
+      geom_text_repel(size = 2, data = subset(PlotDataCompareTargets, abs(TerritorialNetZero - ImplicitNetZero) > 4 & TerritorialNetZero < 2100 & ImplicitNetZero < 2100), 
+                      mapping = aes(y = TerritorialNetZero, x = ImplicitNetZero, label = Country), 
+                      nudge_x = 0.5, nudge_y = 0.5, min.segment.length = 0, max.overlaps = 30, xlim = c(2020,2100), ylim = c(2020,2100)) +
+      geom_text(size = 2.5, color = "black", data = data.frame(CombHistOther = c("Annual Equality", "Capability", "Contraction and Convergence", "Historic Responsibility from 1990", "Historic Responsibility from 2000", "Historic Responsibility from 2010"),
+                                                               Label = c("a)", "b)", "c)", "d)", "e)", "f)")),
+                mapping = aes(x = 2018, y = 2022, label = Label)) +
+      facet_wrap(~CombHistOther, labeller = labeller(HistoricResponsibility = LabelHistoricResponsibility)) +
+      scale_color_manual(values = scico(4, palette = "roma")[1:ifelse(a=="All", 4,2)]) +
+      coord_cartesian(xlim = c(2018,2100), ylim = c(2018,2100)) +
+      labs(y = "Producing countries bear responsibility", x = "Consuming countries bear responsibility", color = "Economic development") +
+      theme_bw(base_size = 9) + theme(legend.position = "bottom",
+                                      legend.margin = margin(0,0,0,0),
+                                      strip.background = element_rect(fill = "black", color = "transparent"),
+                                      strip.text = element_text(color = "white"))
+    
+    png(filename = paste0("Graphs/ResultsCompareTargets",t,a,".png"), width = 6, height = 4, units = "in", res = 300)
+    print(ResultsCompareTargets)
+    dev.off()
+    
+    colnames(DataForSupplementary)[which(names(DataForSupplementary) == "ImplicitNetZero")] <- "ConsumptionBasedNetZero"
+    colnames(DataForSupplementary)[which(names(DataForSupplementary) == "NationalCarbonBudget")] <- "ConsumptionBasedCarbonBudget"
+    DataForSupplementary$DifferenceNetZeros <- DataForSupplementary$ConsumptionBasedNetZero - DataForSupplementary$TerritorialNetZero
+    DataForSupplementary$Country <- as.character(DataForSupplementary$Country)
+    DataForSupplementary <- DataForSupplementary[order(DataForSupplementary$AllocationPrinciple, DataForSupplementary$HistoricResponsibility, DataForSupplementary$EconDevelopment, DataForSupplementary$Country, decreasing = FALSE), ]
+    DataForSupplementary$HistoricResponsibility[DataForSupplementary$HistoricResponsibility == 0] <- NA
+    write.xlsx(DataForSupplementary, "Graphs/DataForSupplementary.xlsx", sheetName = paste0("TempTarget",t,a), row.names = FALSE, showNA = FALSE, append = TRUE)
   }
 }
-colnames(DataForSupplementary)[which(names(DataForSupplementary) == "ImplicitNetZero")] <- "ConsumptionBasedNetZero"
-colnames(DataForSupplementary)[which(names(DataForSupplementary) == "NationalCarbonBudget")] <- "ConsumptionBasedCarbonBudget"
-DataForSupplementary$Country <- as.character(DataForSupplementary$Country)
-DataForSupplementary <- DataForSupplementary[order(DataForSupplementary$TempTarget, DataForSupplementary$AllocationPrinciple, DataForSupplementary$HistoricResponsibility, DataForSupplementary$EconDevelopment, DataForSupplementary$Country, decreasing = FALSE), ]
-DataForSupplementary$HistoricResponsibility[DataForSupplementary$HistoricResponsibility == 0] <- NA
-DataForSupplementary <- DataForSupplementary[, c(1,2,3,4,5,6,8,7,9)]
-write.xlsx(DataForSupplementary, "Graphs/DataForSupplementary.xlsx", row.names = FALSE, showNA = FALSE)
 
 for (t in c(1.5,2)) {
-  PlotCarbonBudgets <- ggplot(data = rbind(cbind(LargeBudgets = TRUE, subset(NationalCarbonBudgets, TempTarget == t & AccountingFramework %in% c(0,1) & Country != "Rest of world" & HistoricResponsibility %in% c(0,1990,2000,2010) & Country %in% CountryAssumptions$Country[CountryAssumptions$EUMemberState == FALSE] & Country %in% c("United States", "China", "India", "European Union"))),
-                                           cbind(LargeBudgets = FALSE, subset(NationalCarbonBudgets, TempTarget == t & AccountingFramework %in% c(0,1) & Country != "Rest of world" & HistoricResponsibility %in% c(0,1990,2000,2010) & Country %in% CountryAssumptions$Country[CountryAssumptions$EUMemberState == FALSE] & !Country %in% c("United States", "China", "India", "European Union"))))) +
+  PlotCarbonBudgets <- ggplot(data = rbind(cbind(LargeBudgets = TRUE, subset(NationalCarbonBudgets, TempTarget == t & AccountingFramework %in% c(0,1) & Country != "Rest of world" & AllocationPrinciple != "Grandfathering" & HistoricResponsibility %in% c(0,1990,2000,2010) & Country %in% CountryAssumptions$Country[CountryAssumptions$EUMemberState == FALSE] & Country %in% c("United States", "China", "India", "European Union"))),
+                                           cbind(LargeBudgets = FALSE, subset(NationalCarbonBudgets, TempTarget == t & AccountingFramework %in% c(0,1) & Country != "Rest of world" & AllocationPrinciple != "Grandfathering" & HistoricResponsibility %in% c(0,1990,2000,2010) & Country %in% CountryAssumptions$Country[CountryAssumptions$EUMemberState == FALSE] & !Country %in% c("United States", "China", "India", "European Union"))))) +
     #geom_rect(mapping = aes(xmin = -Inf, xmax = Inf, ymin = ifelse(LargeBudgets == FALSE, as.numeric(factor(subset(Country, LargeBudgets == LargeBudgets)))-.5, 0), ymax = ifelse(LargeBudgets == FALSE, as.numeric(factor(subset(Country, LargeBudgets == LargeBudgets)))+.5, 0), fill = EconDevelopment), alpha = 0.2) +
     geom_col(mapping = aes(y = Country, x = NationalCarbonBudget/1e3, fill = as.character(AccountingFramework)), position = position_dodge2()) +
     facet_grid2(LargeBudgets~AllocationPrinciple+HistoricResponsibility, scales = "free", space = "free_y", axes = "x", independent = "x",
@@ -622,8 +728,8 @@ for (t in c(1.5,2)) {
   print(PlotCarbonBudgets)
   dev.off()
   
-  PlotCarbonBudgetsEU <- ggplot(data = rbind(cbind(LargeBudgets = TRUE, subset(NationalCarbonBudgets, TempTarget == t & AccountingFramework %in% c(0,1) & Country != "Rest of world" & HistoricResponsibility %in% c(0,1990,2000,2010) & Country %in% CountryAssumptions$Country[CountryAssumptions$EUMemberState == TRUE] & Country %in% c("Germany", "Italy", "Spain", "France", "Poland", "Romania"))),
-                                             cbind(LargeBudgets = FALSE, subset(NationalCarbonBudgets, TempTarget == t & AccountingFramework %in% c(0,1) & Country != "Rest of world" & HistoricResponsibility %in% c(0,1990,2000,2010) & Country %in% CountryAssumptions$Country[CountryAssumptions$EUMemberState == TRUE] & !Country %in% c("Germany", "Italy", "Spain", "France", "Poland", "Romania"))))) +
+  PlotCarbonBudgetsEU <- ggplot(data = rbind(cbind(LargeBudgets = TRUE, subset(NationalCarbonBudgets, TempTarget == t & AccountingFramework %in% c(0,1) & Country != "Rest of world" & AllocationPrinciple != "Grandfathering" & HistoricResponsibility %in% c(0,1990,2000,2010) & Country %in% CountryAssumptions$Country[CountryAssumptions$EUMemberState == TRUE] & Country %in% c("Germany", "Italy", "Spain", "France", "Poland", "Romania"))),
+                                             cbind(LargeBudgets = FALSE, subset(NationalCarbonBudgets, TempTarget == t & AccountingFramework %in% c(0,1) & Country != "Rest of world" & AllocationPrinciple != "Grandfathering" & HistoricResponsibility %in% c(0,1990,2000,2010) & Country %in% CountryAssumptions$Country[CountryAssumptions$EUMemberState == TRUE] & !Country %in% c("Germany", "Italy", "Spain", "France", "Poland", "Romania"))))) +
     #geom_rect(mapping = aes(xmin = -Inf, xmax = Inf, ymin = ifelse(LargeBudgets == FALSE, as.numeric(factor(subset(Country, LargeBudgets == LargeBudgets)))-.5, 0), ymax = ifelse(LargeBudgets == FALSE, as.numeric(factor(subset(Country, LargeBudgets == LargeBudgets)))+.5, 0), fill = EconDevelopment), alpha = 0.2) +
     geom_col(mapping = aes(y = Country, x = NationalCarbonBudget/1e3, fill = as.character(AccountingFramework)), position = position_dodge2()) +
     facet_grid2(LargeBudgets~AllocationPrinciple+HistoricResponsibility, scales = "free", space = "free_y", axes = "x", independent = "x",
