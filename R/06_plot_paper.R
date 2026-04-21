@@ -126,9 +126,9 @@ DataTrends <- bind_rows(
 
   # World average emissions per capita
   DataGlobalCarbonBudget %>%
-    filter(Country == "World", Accounting == "World") %>%
+    filter(iso3c == "WLD", Accounting == "World") %>%
     left_join(
-      DataUNPopulation %>% filter(Country == "World") %>%
+      DataUNPopulation %>% filter(iso3c == "WLD") %>%
         select(Year, Population),
       by = "Year"
     ) %>%

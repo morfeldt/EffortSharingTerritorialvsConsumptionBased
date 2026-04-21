@@ -92,6 +92,24 @@ countries_iso3c <- DataGlobalCarbonBudget %>%
   distinct(iso3c) %>%
   pull(iso3c)
 
+# Report countries that have consumption-based emissions in the GCP dataset
+# but are excluded because their data does not cover YearStart.
+excluded_no_yearstart <- DataGlobalCarbonBudget %>%
+  filter(Accounting == "Consumption Emissions", !is.na(EmissionsMtCO2), !is.na(iso3c),
+         !iso3c %in% countries_iso3c) %>%
+  distinct(iso3c) %>%
+  left_join(DataWorldBankClassif %>% distinct(iso3c, Country), by = "iso3c") %>%
+  filter(!is.na(Country))   # drop unresolved iso3c codes (already warned above)
+
+if (nrow(excluded_no_yearstart) > 0)
+  message(sprintf(
+    "Excluding %d %s with consumption emissions data but no data back to %d (rolling into Rest of world): %s",
+    nrow(excluded_no_yearstart),
+    if (nrow(excluded_no_yearstart) == 1) "country" else "countries",
+    YearStart,
+    paste(excluded_no_yearstart$Country, collapse = ", ")
+  ))
+
 # Build CountryAssumptions using canonical names and ISO codes from DataWorldBankClassif
 CountryAssumptions <- tibble(iso3c = countries_iso3c) %>%
   left_join(DataWorldBankClassif %>% distinct(iso3c, Country, iso2c), by = "iso3c") %>%
@@ -166,12 +184,30 @@ DataUNPopulation <- DataUNPopulation %>%
   select(-Country.x) %>%
   rename(Country = Country.y)
 
-# Convert SSP region names to iso3c codes (SSP 3.2 uses full country names)
+# Convert SSP region names to iso3c codes (SSP 3.2 uses full country names).
+# Some SSP names differ from World Bank canonical names; map them explicitly.
+ssp_iso3c_overrides <- tribble(
+  ~Country,       ~iso3c,
+  "Slovakia",     "SVK",   # WB: "Slovak Republic"
+  "Hong Kong",    "HKG",   # WB: "Hong Kong SAR, China"
+  "Kyrgyzstan",   "KGZ",   # WB: "Kyrgyz Republic"
+  "Venezuela",    "VEN",   # WB: "Venezuela, RB"
+  "Laos",         "LAO",   # WB: "Lao PDR"
+  "Egypt",        "EGY",   # WB: "Egypt, Arab Rep."
+  "Gambia",       "GMB",   # WB: "Gambia, The"
+  "Iran",         "IRN",   # WB: "Iran, Islamic Rep."
+  "South Korea",  "KOR",   # WB: "Korea, Rep."
+  "Turkey",       "TUR"    # WB: "Türkiye"
+)
+
+ssp_to_iso3c <- bind_rows(
+  ssp_iso3c_overrides,
+  DataWorldBankClassif %>% distinct(Country, iso3c) %>% filter(!is.na(iso3c))
+) %>%
+  distinct(Country, .keep_all = TRUE)   # overrides take priority
+
 DataSSPFutureGDP <- DataSSPFutureGDP %>%
-  left_join(
-    DataWorldBankClassif %>% distinct(Country, iso3c) %>% filter(!is.na(iso3c)),
-    by = c("Region" = "Country")
-  ) %>%
+  left_join(ssp_to_iso3c, by = c("Region" = "Country")) %>%
   mutate(Region = case_when(
     !is.na(iso3c) ~ iso3c,
     Region == "World" ~ "WLD",
@@ -179,6 +215,43 @@ DataSSPFutureGDP <- DataSSPFutureGDP %>%
   )) %>%
   select(-iso3c) %>%
   filter(Region %in% c(CountryAssumptions$iso3c, "WLD"))
+
+# Aggregate EU-27 SSP data (summed across member states, now that regions are iso3c)
+ssp_eu <- DataSSPFutureGDP %>%
+  filter(Region %in% DataWorldBankClassif$iso3c[DataWorldBankClassif$iso2c %in% EUStatesISO2]) %>%
+  group_by(Scenario, Year, Variable, Unit) %>%
+  summarise(Value = sum(Value, na.rm = TRUE), .groups = "drop") %>%
+  mutate(Model = "Aggregate", Region = "EUU")
+
+DataSSPFutureGDP <- bind_rows(DataSSPFutureGDP, ssp_eu)
+
+# Countries must have both Population and GDP in the SSP scenario used for
+# Capability allocation. Countries missing either are dropped from
+# CountryAssumptions here — before the ROW residuals are computed — so their
+# emissions and population automatically roll into Rest of world.
+ssp_complete <- DataSSPFutureGDP %>%
+  filter(Scenario == SSPScenario, Variable %in% c("Population", "GDP|PPP"),
+         !Region %in% c("WLD", "EUU", "ROW")) %>%
+  group_by(Region) %>%
+  summarise(n_vars = n_distinct(Variable), .groups = "drop") %>%
+  filter(n_vars == 2) %>%
+  pull(Region)
+
+excluded_countries <- CountryAssumptions %>%
+  filter(!iso3c %in% c("WLD", "ROW", "EUU"), !iso3c %in% ssp_complete)
+
+if (nrow(excluded_countries) > 0) {
+  message(sprintf(
+    "Excluding %d %s with incomplete SSP data (rolling into Rest of world): %s",
+    nrow(excluded_countries),
+    if (nrow(excluded_countries) == 1) "country" else "countries",
+    paste(excluded_countries$Country, collapse = ", ")
+  ))
+  CountryAssumptions    <- CountryAssumptions    %>% filter(!iso3c %in% excluded_countries$iso3c)
+  DataGlobalCarbonBudget <- DataGlobalCarbonBudget %>%
+    filter(Country %in% CountryAssumptions$Country | Country == "World")
+  DataUNPopulation      <- DataUNPopulation      %>% filter(iso3c %in% CountryAssumptions$iso3c)
+}
 
 # -----------------------------------------------------------------------------
 # 6. Compute "Rest of world" residuals
@@ -272,6 +345,17 @@ DataSSPFutureGDP <- bind_rows(
 
 ssp_pop_scenario <- DataSSPFutureGDP %>%
   filter(Scenario == SSPScenario, Variable == "Population")
+
+# Validate: every country in CountryAssumptions must have UN population data.
+missing_pop <- CountryAssumptions %>%
+  filter(!iso3c %in% c("WLD", "ROW")) %>%
+  anti_join(DataUNPopulation %>% distinct(iso3c), by = "iso3c")
+if (nrow(missing_pop) > 0) {
+  stop(sprintf(
+    "UN population data missing for: %s\n  Delete data/un_population.csv and re-run to refetch.",
+    paste(missing_pop$Country, collapse = ", ")
+  ))
+}
 
 # Per-entity anchoring factor: UN_value_at_YearEnd / SSP_value_at_YearEnd
 entity_scale <- DataUNPopulation %>%

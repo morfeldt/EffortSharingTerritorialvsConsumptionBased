@@ -24,8 +24,8 @@ AccountingFrameworkValues <- seq(0, 1, by = 0.05)  # 21 values
 # Historic responsibility base years (0 = no historic responsibility)
 HistoricYears <- c(0, seq(1990, 2021, by = 5))
 
-# Countries to compute budgets for (excluding "World")
-BudgetCountries <- CountryAssumptions$Country[CountryAssumptions$Country != "World"]
+# iso3c codes to compute budgets for (excluding World); names used only for output
+BudgetCountries <- CountryAssumptions$iso3c[CountryAssumptions$Country != "World"]
 
 # -----------------------------------------------------------------------------
 # Parallelised budget calculation
@@ -52,7 +52,7 @@ NationalCarbonBudgets <-
     .combine = "rbind"
   ) %:%
   foreach(
-    country = BudgetCountries,
+    country = BudgetCountries,   # holds iso3c; name resolved only in output
     .combine  = "rbind",
     .packages = c("dplyr", "purrr"),
     .export   = c("DataSSPFutureGDP", "SSPScenario",
@@ -71,7 +71,7 @@ NationalCarbonBudgets <-
     # responsibility window cannot produce a valid ECPC budget.
     if (alloc == "Equal Cumulative per Capita") {
       cons_vals <- DataGlobalCarbonBudget$EmissionsMtCO2[
-        DataGlobalCarbonBudget$Country    == country &
+        DataGlobalCarbonBudget$iso3c      == country &
         DataGlobalCarbonBudget$Accounting == "Consumption Emissions" &
         DataGlobalCarbonBudget$Year       %in% base_year:YearEnd
       ]
@@ -81,7 +81,7 @@ NationalCarbonBudgets <-
     # ----- Year at which global net-zero is reached --------------------------
     budget_MtCO2 <- CarbonBudget$BudgetGtCO2[CarbonBudget$TempTarget == temp] * 1e3
     E2021 <- DataGlobalCarbonBudget$EmissionsMtCO2[
-      DataGlobalCarbonBudget$Country     == "World" &
+      DataGlobalCarbonBudget$iso3c       == "WLD" &
       DataGlobalCarbonBudget$Accounting  == "World" &
       DataGlobalCarbonBudget$Year        == YearEnd
     ]
@@ -96,23 +96,23 @@ NationalCarbonBudgets <-
       #          – (cumulative national emissions from base_year to 2021, blended)
       "Equal Cumulative per Capita" = {
         global_hist <- DataGlobalCarbonBudget %>%
-          filter(Country == "World", Accounting == "World",
+          filter(iso3c == "WLD", Accounting == "World",
                  Year %in% base_year:YearEnd) %>%
           pull(EmissionsMtCO2) %>% sum()
         pop_c <- DataPopulation %>%
-          filter(Country == country,
+          filter(iso3c == country,
                  Year %in% base_year:ceiling(GlobalNetZero)) %>%
           pull(Population) %>% sum()
         pop_w <- DataPopulation %>%
-          filter(Country == "World",
+          filter(iso3c == "WLD",
                  Year %in% base_year:ceiling(GlobalNetZero)) %>%
           pull(Population) %>% sum()
         hist_c_terr <- DataGlobalCarbonBudget %>%
-          filter(Country == country, Accounting == "Territorial Emissions",
+          filter(iso3c == country, Accounting == "Territorial Emissions",
                  Year %in% base_year:YearEnd) %>%
           pull(EmissionsMtCO2) %>% sum()
         hist_c_cons <- DataGlobalCarbonBudget %>%
-          filter(Country == country, Accounting == "Consumption Emissions",
+          filter(iso3c == country, Accounting == "Consumption Emissions",
                  Year %in% base_year:YearEnd) %>%
           pull(EmissionsMtCO2) %>% sum()
 
@@ -126,10 +126,10 @@ NationalCarbonBudgets <-
         global_curve <- GlobalEmissionCurves %>%
           filter(TempTarget == temp, Year %in% YearBudget:YearHorizon)
         pop_c <- DataPopulation %>%
-          filter(Country == country, Year %in% YearBudget:YearHorizon) %>%
+          filter(iso3c == country, Year %in% YearBudget:YearHorizon) %>%
           arrange(Year) %>% pull(Population)
         pop_w <- DataPopulation %>%
-          filter(Country == "World", Year %in% YearBudget:YearHorizon) %>%
+          filter(iso3c == "WLD", Year %in% YearBudget:YearHorizon) %>%
           arrange(Year) %>% pull(Population)
         sum(global_curve$EmissionsMtCO2 * pop_c / pop_w)
       },
@@ -138,18 +138,18 @@ NationalCarbonBudgets <-
       # Budget = global budget × country's share of 2021 emissions (blended)
       "Grandfathering" = {
         e_terr <- DataGlobalCarbonBudget$EmissionsMtCO2[
-          DataGlobalCarbonBudget$Country == country &
-          DataGlobalCarbonBudget$Year == YearEnd &
+          DataGlobalCarbonBudget$iso3c      == country &
+          DataGlobalCarbonBudget$Year       == YearEnd &
           DataGlobalCarbonBudget$Accounting == "Territorial Emissions"
         ]
         e_cons <- DataGlobalCarbonBudget$EmissionsMtCO2[
-          DataGlobalCarbonBudget$Country == country &
-          DataGlobalCarbonBudget$Year == YearEnd &
+          DataGlobalCarbonBudget$iso3c      == country &
+          DataGlobalCarbonBudget$Year       == YearEnd &
           DataGlobalCarbonBudget$Accounting == "Consumption Emissions"
         ]
         e_world <- DataGlobalCarbonBudget$EmissionsMtCO2[
-          DataGlobalCarbonBudget$Country == "World" &
-          DataGlobalCarbonBudget$Year == YearEnd &
+          DataGlobalCarbonBudget$iso3c      == "WLD" &
+          DataGlobalCarbonBudget$Year       == YearEnd &
           DataGlobalCarbonBudget$Accounting == "World"
         ]
         budget_MtCO2 * ((1 - acct) * e_terr + acct * e_cons) / e_world
@@ -171,14 +171,14 @@ NationalCarbonBudgets <-
     # ----- Derive implicit net-zero year ------------------------------------
     e_current <- {
       e_terr <- DataGlobalCarbonBudget$EmissionsMtCO2[
-        DataGlobalCarbonBudget$Country == country &
+        DataGlobalCarbonBudget$iso3c      == country &
         DataGlobalCarbonBudget$Accounting == "Territorial Emissions" &
-        DataGlobalCarbonBudget$Year == YearEnd
+        DataGlobalCarbonBudget$Year       == YearEnd
       ]
       e_cons <- DataGlobalCarbonBudget$EmissionsMtCO2[
-        DataGlobalCarbonBudget$Country == country &
+        DataGlobalCarbonBudget$iso3c      == country &
         DataGlobalCarbonBudget$Accounting == "Consumption Emissions" &
-        DataGlobalCarbonBudget$Year == YearEnd
+        DataGlobalCarbonBudget$Year       == YearEnd
       ]
       (1 - acct) * e_terr + acct * e_cons
     }
@@ -192,8 +192,8 @@ NationalCarbonBudgets <-
     }
 
     data.frame(
-      Country                = country,
-      EconDevelopment        = CountryAssumptions$Development[CountryAssumptions$Country == country],
+      Country                = CountryAssumptions$Country[CountryAssumptions$iso3c == country],
+      EconDevelopment        = CountryAssumptions$Development[CountryAssumptions$iso3c == country],
       AllocationPrinciple    = alloc,
       TempTarget             = temp,
       AccountingFramework    = acct,

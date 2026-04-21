@@ -15,7 +15,7 @@ write.xlsx(
   NationalCarbonBudgets %>% mutate(across(where(is.factor), as.character)),
   "output/NationalCarbonBudgets.xlsx",
   sheetName  = "NationalCarbonBudgets",
-  row.names  = FALSE,
+  rowNames  = FALSE,
   overwrite  = TRUE
 )
 message("Written: output/NationalCarbonBudgets.xlsx")

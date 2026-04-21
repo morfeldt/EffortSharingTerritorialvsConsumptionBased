@@ -35,6 +35,11 @@ SSPScenario <- "SSP2"
 SSPModelGDP        <- "OECD ENV-Growth 2025"
 SSPModelPopulation <- "IIASA-WiC POP 2025"
 
+# GDP unit to select from the SSP database. The OECD ENV-Growth model provides
+# GDP in multiple base years; pick one for consistency. Check data/ssp_data.csv
+# for available units if you switch to a different GDP model.
+SSPUnitGDP <- "billion USD_2017/yr"
+
 # Years over which the analysis runs
 YearStart    <- 1990L   # first year of historical period used in budgets
 YearEnd      <- 2023L   # last year with observed emissions (GCP data)

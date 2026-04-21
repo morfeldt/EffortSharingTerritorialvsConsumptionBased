@@ -53,14 +53,12 @@ GlobalEmissionCurves <-
 #
 # Returns: scalar budget in MtCO₂
 
-AnnualCapability <- function(country, temp_target) {
+AnnualCapability <- function(country_iso3c, temp_target) {
 
   # All non-World, non-EU-aggregate country iso3c codes
   all_iso3c <- CountryAssumptions %>%
-    filter(!Country %in% c("World", "European Union")) %>%
+    filter(!iso3c %in% c("WLD", "EUU")) %>%
     pull(iso3c)
-
-  country_iso3c <- CountryAssumptions$iso3c[CountryAssumptions$Country == country]
 
   ssp_year <- DataSSPFutureGDP %>%
     filter(Scenario == SSPScenario, Region %in% c(all_iso3c, country_iso3c))
@@ -106,22 +104,20 @@ AnnualCapability <- function(country, temp_target) {
 #
 # Returns: scalar budget in MtCO₂
 
-AnnualPerCapitaConvergence <- function(country, temp_target,
+AnnualPerCapitaConvergence <- function(country_iso3c, temp_target,
                                        accounting_weight, conv_year = 2050) {
-
-  country_iso3c <- CountryAssumptions$iso3c[CountryAssumptions$Country == country]
 
   # Current (YearEnd) emission share of this country
   e_terr <- DataGlobalCarbonBudget %>%
-    filter(Country == country, Accounting == "Territorial Emissions",
+    filter(iso3c == country_iso3c, Accounting == "Territorial Emissions",
            Year == YearEnd) %>%
     pull(EmissionsMtCO2)
   e_cons <- DataGlobalCarbonBudget %>%
-    filter(Country == country, Accounting == "Consumption Emissions",
+    filter(iso3c == country_iso3c, Accounting == "Consumption Emissions",
            Year == YearEnd) %>%
     pull(EmissionsMtCO2)
   e_world <- DataGlobalCarbonBudget %>%
-    filter(Country == "World", Accounting == "World", Year == YearEnd) %>%
+    filter(iso3c == "WLD", Accounting == "World", Year == YearEnd) %>%
     pull(EmissionsMtCO2)
 
   current_share <- ((1 - accounting_weight) * e_terr +

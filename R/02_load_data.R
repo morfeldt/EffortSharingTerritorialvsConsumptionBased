@@ -285,20 +285,11 @@ DataSSPFutureGDP <- DataSSPRaw %>%
   filter(
     Variable %in% c("GDP|PPP", "Population"),
     Year >= 2010, Year <= 2100,
-    (Unit == "billion USD_2017/yr" | Unit == "million"),
-    (Variable == "GDP|PPP"    & Model == SSPModelGDP) |
-    (Variable == "Population" & Model == SSPModelPopulation)
+    (Variable == "GDP|PPP"    & Model == SSPModelGDP        & Unit == SSPUnitGDP) |
+    (Variable == "Population" & Model == SSPModelPopulation & Unit == "million")
   ) %>%
   mutate(Year = as.integer(Year)) %>%
   group_by(Model, Scenario, Region, Variable, Unit) %>%
   interpolate_ssp_annual()
-
-# Aggregate EU-27 SSP data (summed across member states)
-# Uses World Bank iso2c codes to identify EU members
-ssp_eu <- DataSSPFutureGDP %>%
-  filter(Region %in% DataWorldBankClassif$iso3c[DataWorldBankClassif$iso2c %in% EUStatesISO2]) %>%
-  group_by(Scenario, Year, Variable, Unit) %>%
-  summarise(Value = sum(Value, na.rm = TRUE), .groups = "drop") %>%
-  mutate(Model = "Aggregate", Region = "EUU")
-
-DataSSPFutureGDP <- bind_rows(DataSSPFutureGDP, ssp_eu)
+# EU-27 SSP aggregation is done in 03_prepare_data.R after region names are
+# converted to iso3c codes.
