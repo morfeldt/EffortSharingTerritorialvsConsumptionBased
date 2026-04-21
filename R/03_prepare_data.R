@@ -420,9 +420,15 @@ DataSSPFutureGDP       <- DataSSPFutureGDP       %>% arrange(Region, Year)
 # -----------------------------------------------------------------------------
 # 9. Set country factor levels for plotting
 # -----------------------------------------------------------------------------
-# Countries in alphabetical order, with Rest of world and World at the end.
+# Countries ordered by economic development group then alphabetically within each group.
 CountryLevels <- c(
-  sort(CountryAssumptions$Country[!CountryAssumptions$Country %in% c("World", "Rest of world")]),
+  CountryAssumptions %>%
+    filter(!Country %in% c("World", "Rest of world")) %>%
+    mutate(Development = factor(Development,
+                                    levels = c("High", "Upper-middle",
+                                               "Lower-middle", "Low"))) %>%
+    arrange(Development, Country) %>%
+    pull(Country),
   "Rest of world",
   "World"
 )

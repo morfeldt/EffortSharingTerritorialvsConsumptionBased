@@ -43,7 +43,7 @@ source("R/02_load_data.R")          # 4. Download / read raw data
 source("R/03_prepare_data.R")       # 5. Clean, reshape, aggregate Rest-of-World
 source("R/04_allocation_functions.R") # 6. Allocation-principle helper functions
 source("R/05_calculate_budgets.R")  # 7. National carbon budget calculations (parallelised)
-source("R/06_plot_paper.R")         # 8. Main-paper figures
+source("R/06_plot_sample_countries.R") # 8. Sample-country figures
 source("R/07_plot_supplementary.R") # 9. Supplementary figures
 source("R/08_export.R")             # 10. Write Excel output tables
 

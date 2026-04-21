@@ -24,13 +24,32 @@
 
 dir.create("output/Graphs", recursive = TRUE, showWarnings = FALSE)
 
+# Output filename map: old stem → new stem
+figure_stem_map <- c(
+  "ResultsCompareTargets1.5All" = "Figure4",
+  "ResultsCompareTargets1.5EU"  = "Figure5",
+  "AllCountries1.5"             = "SupplementaryFigure1",
+  "EUMemberStates1.5"           = "SupplementaryFigure2",
+  "ResultsCarbonBudgets1.5"     = "SupplementaryFigure3",
+  "ResultsCarbonBudgets1.5EU"   = "SupplementaryFigure4",
+  "AllCountries2"               = "SupplementaryFigure5",
+  "EUMemberStates2"             = "SupplementaryFigure6",
+  "ResultsCarbonBudgets2"       = "SupplementaryFigure7",
+  "ResultsCarbonBudgets2EU"     = "SupplementaryFigure8"
+)
+figure_path <- function(stem) {
+  mapped <- figure_stem_map[stem]
+  sprintf("output/Graphs/%s.png", if (!is.na(mapped)) mapped else stem)
+}
+
 # Shared theme elements -------------------------------------------------------
 theme_supp <- theme_bw(base_size = 7.4) +
   theme(
-    legend.position   = "bottom",
-    strip.background  = element_rect(fill = "black", color = "transparent"),
-    strip.text        = element_text(color = "white"),
-    axis.text.x       = element_text(angle = 45, vjust = 1, hjust = 1)
+    legend.position    = "bottom",
+    strip.background   = element_rect(fill = "black", color = "transparent"),
+    strip.text         = element_text(color = "white"),
+    axis.text.x        = element_text(angle = 45, vjust = 1, hjust = 1),
+    panel.grid.major.y = element_blank()
   )
 
 # Helper: build "CombHistOther" label used in scatter plots -------------------
@@ -46,171 +65,162 @@ add_comb_label <- function(df) {
   )
 }
 
-# Panel letter labels for scatter plots
+# Panel letter labels for scatter plots (3 panels: no C&C, no ECPC with HR=0, HR=1990 only)
 scatter_labels <- tibble(
   CombHistOther = c("Annual Equality", "Capability",
-                    "Contraction and Convergence",
-                    "Historic Responsibility from 1990",
-                    "Historic Responsibility from 2000",
-                    "Historic Responsibility from 2010"),
-  Label = paste0(letters[1:6], ")")
+                    "Historic Responsibility from 1990"),
+  Label = paste0(letters[1:3], ")")
 )
 
+temp_labeller_scatter <- labeller(TempTarget = c("1.5" = "1.5°C", "2" = "2°C"))
+
 # -----------------------------------------------------------------------------
-# Loop over temperature targets and country sets
+# Figure 4 / Figure 5 – scatter plots combining both temperature targets as rows
 # -----------------------------------------------------------------------------
 # DataForSupplementary is assembled here and passed to 08_export.R
 DataForSupplementary <- list()
 
-for (t in c(1.5, 2)) {
-  for (country_set in c("All", "EU")) {
+for (country_set in c("All", "EU")) {
 
-    is_eu <- country_set == "EU"
+  is_eu <- country_set == "EU"
 
-    # Countries in this panel
-    panel_iso <- CountryAssumptions %>%
-      filter(
-        iso3c != "ROW",
-        EUMemberState == is_eu
-      ) %>%
-      pull(Country)
+  panel_iso <- CountryAssumptions %>%
+    filter(iso3c != "ROW", EUMemberState == is_eu) %>%
+    pull(Country)
 
-    # Base data: consumption-based (f=1) and territorial (f=0) net-zero years
-    base_data <- NationalCarbonBudgets %>%
-      filter(
-        Country %in% panel_iso,
-        TempTarget == t,
-        HistoricResponsibility %in% c(0, 1990, 2000, 2010),
-        AllocationPrinciple != "Grandfathering"
-      ) %>%
-      add_comb_label()
+  base_data <- NationalCarbonBudgets %>%
+    filter(
+      Country %in% panel_iso,
+      TempTarget %in% c(1.5, 2),
+      HistoricResponsibility %in% c(0, 1990),
+      !AllocationPrinciple %in% c("Grandfathering", "Contraction and Convergence"),
+      !(AllocationPrinciple == "Equal Cumulative per Capita" & HistoricResponsibility == 0)
+    ) %>%
+    add_comb_label()
 
-    PlotData <- base_data %>%
-      filter(AccountingFramework == 1) %>%
-      left_join(
-        base_data %>%
-          filter(AccountingFramework == 0) %>%
-          select(Country, AllocationPrinciple, HistoricResponsibility,
-                 TerritorialNetZero  = ImplicitNetZero,
-                 TerritorialBudget   = NationalCarbonBudget),
-        by = c("Country", "AllocationPrinciple", "HistoricResponsibility")
-      ) %>%
-      rename(
-        ConsumptionBasedNetZero   = ImplicitNetZero,
-        ConsumptionBasedBudget    = NationalCarbonBudget
-      ) %>%
-      mutate(DifferenceNetZeros = ConsumptionBasedNetZero - TerritorialNetZero)
+  PlotData <- base_data %>%
+    filter(AccountingFramework == 1) %>%
+    left_join(
+      base_data %>%
+        filter(AccountingFramework == 0) %>%
+        select(Country, AllocationPrinciple, HistoricResponsibility, TempTarget,
+               TerritorialNetZero  = ImplicitNetZero,
+               TerritorialBudget   = NationalCarbonBudget),
+      by = c("Country", "AllocationPrinciple", "HistoricResponsibility", "TempTarget")
+    ) %>%
+    rename(
+      ConsumptionBasedNetZero = ImplicitNetZero,
+      ConsumptionBasedBudget  = NationalCarbonBudget
+    ) %>%
+    mutate(DifferenceNetZeros = ConsumptionBasedNetZero - TerritorialNetZero)
 
-    # Store for export
-    DataForSupplementary[[paste0(t, country_set)]] <- PlotData %>%
-      select(AllocationPrinciple, HistoricResponsibility, EconDevelopment, Country,
-             ConsumptionBasedNetZero, ConsumptionBasedBudget,
-             TerritorialNetZero, TerritorialBudget, DifferenceNetZeros) %>%
-      arrange(AllocationPrinciple, HistoricResponsibility, EconDevelopment, Country) %>%
-      mutate(
-        HistoricResponsibility = na_if(as.character(HistoricResponsibility), "0"),
-        Country = as.character(Country)
+  DataForSupplementary[[paste0("scatter_", country_set)]] <- PlotData %>%
+    select(TempTarget, AllocationPrinciple, HistoricResponsibility, EconDevelopment, Country,
+           ConsumptionBasedNetZero, ConsumptionBasedBudget,
+           TerritorialNetZero, TerritorialBudget, DifferenceNetZeros) %>%
+    arrange(TempTarget, AllocationPrinciple, HistoricResponsibility, EconDevelopment, Country) %>%
+    mutate(
+      HistoricResponsibility = na_if(as.character(HistoricResponsibility), "0"),
+      Country = as.character(Country)
+    )
+
+  n_dev    <- if (is_eu) 2L else 4L
+  dev_cols <- scico(4, palette = "roma")[1:n_dev]
+
+  ResultsCompareTargets <- ggplot(PlotData) +
+    geom_abline(intercept = 0, slope = 1, color = "gray") +
+    annotate("rect", xmin = 2088, xmax = 2102, ymin = 2025, ymax = 2050,
+             fill = "lightgray") +
+    annotate("rect", xmin = 2018, xmax = 2032, ymin = 2080, ymax = 2100,
+             fill = "lightgray") +
+    geom_point(
+      aes(
+        x = if_else(ConsumptionBasedBudget < 0, 2025,
+            if_else(ConsumptionBasedNetZero > 2100 | TerritorialNetZero > 2100,
+                    2095, ConsumptionBasedNetZero)),
+        y = if_else(ConsumptionBasedBudget < 0,
+            case_when(EconDevelopment == "High"         ~ 2090,
+                      EconDevelopment == "Upper-middle" ~ 2085,
+                      EconDevelopment == "Lower-middle" ~ 2080,
+                      TRUE                              ~ 2075),
+            if_else(ConsumptionBasedNetZero > 2100 | TerritorialNetZero > 2100,
+            case_when(EconDevelopment == "High"         ~ 2025,
+                      EconDevelopment == "Upper-middle" ~ 2030,
+                      EconDevelopment == "Lower-middle" ~ 2035,
+                      TRUE                              ~ 2040),
+            TerritorialNetZero)),
+        color = EconDevelopment
       )
-
-    # ── Scatter plot: territorial vs consumption-based net-zero ──────────────
-    n_dev <- if (is_eu) 2L else 4L   # number of development categories shown
-    dev_cols <- scico(4, palette = "roma")[1:n_dev]
-
-    ResultsCompareTargets <- ggplot(PlotData) +
-      # Reference line (both frameworks agree)
-      geom_abline(intercept = 0, slope = 1, color = "gray") +
-      # Grey boxes for "out of range" annotations
-      annotate("rect", xmin = 2088, xmax = 2102, ymin = 2025, ymax = 2050,
-               fill = "lightgray") +
-      annotate("rect", xmin = 2018, xmax = 2032, ymin = 2080, ymax = 2100,
-               fill = "lightgray") +
-      # Main scatter
-      geom_point(
-        aes(
-          x = if_else(ConsumptionBasedBudget < 0, 2025,
-              if_else(ConsumptionBasedNetZero > 2100 | TerritorialNetZero > 2100,
-                      2095, ConsumptionBasedNetZero)),
-          y = if_else(ConsumptionBasedBudget < 0,
-              case_when(EconDevelopment == "High"         ~ 2090,
-                        EconDevelopment == "Upper-middle" ~ 2085,
-                        EconDevelopment == "Lower-middle" ~ 2080,
-                        TRUE                              ~ 2075),
-              if_else(ConsumptionBasedNetZero > 2100 | TerritorialNetZero > 2100,
-              case_when(EconDevelopment == "High"         ~ 2025,
+    ) +
+    geom_text(
+      data = PlotData %>%
+        filter(ConsumptionBasedNetZero > 2100 | TerritorialNetZero > 2100) %>%
+        count(EconDevelopment, CombHistOther, TempTarget) %>%
+        filter(n > 0),
+      aes(label = n, x = 2097,
+          y = case_when(EconDevelopment == "High"         ~ 2025,
                         EconDevelopment == "Upper-middle" ~ 2030,
                         EconDevelopment == "Lower-middle" ~ 2035,
-                        TRUE                              ~ 2040),
-              TerritorialNetZero)),
-          color = EconDevelopment
-        )
-      ) +
-      # Count labels for ">2100" box
-      geom_text(
-        data = PlotData %>%
-          filter(ConsumptionBasedNetZero > 2100 | TerritorialNetZero > 2100) %>%
-          count(EconDevelopment, CombHistOther) %>%
-          filter(n > 0),
-        aes(label = n, x = 2097,
-            y = case_when(EconDevelopment == "High"         ~ 2025,
-                          EconDevelopment == "Upper-middle" ~ 2030,
-                          EconDevelopment == "Lower-middle" ~ 2035,
-                          TRUE                              ~ 2040)),
-        hjust = 0, vjust = 0.5, size = 2
-      ) +
-      annotate("text", x = 2095, y = 2045, label = ">2100", size = 2) +
-      # Count labels for "negative budget" box
-      geom_text(
-        data = PlotData %>%
-          filter(ConsumptionBasedBudget < 0) %>%
-          count(EconDevelopment, CombHistOther) %>%
-          filter(n > 0),
-        aes(label = n, x = 2027,
-            y = case_when(EconDevelopment == "High"         ~ 2090,
-                          EconDevelopment == "Upper-middle" ~ 2085,
-                          EconDevelopment == "Lower-middle" ~ 2080,
-                          TRUE                              ~ 2075)),
-        hjust = 0, vjust = 0.5, size = 2
-      ) +
-      annotate("text", x = 2025, y = 2095,
-               label = expression(paste("<0 CO"[2])), size = 2) +
-      # Country labels for outliers
-      geom_text_repel(
-        data = PlotData %>%
-          filter(abs(TerritorialNetZero - ConsumptionBasedNetZero) > 4,
-                 TerritorialNetZero < 2100, ConsumptionBasedNetZero < 2100),
-        aes(y = TerritorialNetZero, x = ConsumptionBasedNetZero, label = Country),
-        size = 2, nudge_x = 0.5, nudge_y = 0.5,
-        min.segment.length = 0, max.overlaps = 30,
-        xlim = c(2020, 2100), ylim = c(2020, 2100)
-      ) +
-      # Panel letters
-      geom_text(
-        data = scatter_labels,
-        aes(x = 2018, y = 2022, label = Label),
-        size = 2.5, color = "black"
-      ) +
-      facet_wrap(~ CombHistOther) +
-      scale_color_manual(values = dev_cols) +
-      coord_cartesian(xlim = c(2018, 2100), ylim = c(2018, 2100)) +
-      labs(
-        y     = "Producing countries bear responsibility",
-        x     = "Consuming countries bear responsibility",
-        color = "Economic development"
-      ) +
-      theme_bw(base_size = 9) +
-      theme(
-        legend.position   = "bottom",
-        legend.margin     = margin(0, 0, 0, 0),
-        strip.background  = element_rect(fill = "black", color = "transparent"),
-        strip.text        = element_text(color = "white")
-      )
-
-    ggsave(
-      sprintf("output/Graphs/ResultsCompareTargets%s%s.png", t, country_set),
-      ResultsCompareTargets,
-      width = 6, height = 4, units = "in", dpi = 300
+                        TRUE                              ~ 2040)),
+      hjust = 0, vjust = 0.5, size = 2
+    ) +
+    annotate("text", x = 2095, y = 2045, label = ">2100", size = 2) +
+    geom_text(
+      data = PlotData %>%
+        filter(ConsumptionBasedBudget < 0) %>%
+        count(EconDevelopment, CombHistOther, TempTarget) %>%
+        filter(n > 0),
+      aes(label = n, x = 2027,
+          y = case_when(EconDevelopment == "High"         ~ 2090,
+                        EconDevelopment == "Upper-middle" ~ 2085,
+                        EconDevelopment == "Lower-middle" ~ 2080,
+                        TRUE                              ~ 2075)),
+      hjust = 0, vjust = 0.5, size = 2
+    ) +
+    annotate("text", x = 2025, y = 2095,
+             label = expression(paste("<0 CO"[2])), size = 2) +
+    geom_text_repel(
+      data = PlotData %>%
+        filter(abs(TerritorialNetZero - ConsumptionBasedNetZero) > 4,
+               TerritorialNetZero < 2100, ConsumptionBasedNetZero < 2100),
+      aes(y = TerritorialNetZero, x = ConsumptionBasedNetZero, label = Country),
+      size = 2, nudge_x = 0.5, nudge_y = 0.5,
+      min.segment.length = 0, max.overlaps = 30,
+      xlim = c(2020, 2100), ylim = c(2020, 2100)
+    ) +
+    geom_text(
+      data = scatter_labels,
+      aes(x = 2018, y = 2022, label = Label),
+      size = 2.5, color = "black"
+    ) +
+    facet_grid(TempTarget ~ CombHistOther, labeller = temp_labeller_scatter) +
+    scale_color_manual(values = dev_cols) +
+    coord_cartesian(xlim = c(2018, 2100), ylim = c(2018, 2100)) +
+    labs(
+      y     = "Producing countries bear responsibility",
+      x     = "Consuming countries bear responsibility",
+      color = "Economic development"
+    ) +
+    theme_bw(base_size = 9) +
+    theme(
+      legend.position   = "bottom",
+      legend.margin     = margin(0, 0, 0, 0),
+      strip.background  = element_rect(fill = "black", color = "transparent"),
+      strip.text        = element_text(color = "white")
     )
-  }
+
+  ggsave(
+    figure_path(sprintf("ResultsCompareTargets1.5%s", country_set)),
+    ResultsCompareTargets,
+    width = 6, height = 4, units = "in", dpi = 300
+  )
+}
+
+# -----------------------------------------------------------------------------
+# Supplementary figures – loop over temperature targets
+# -----------------------------------------------------------------------------
+
+for (t in c(1.5, 2)) {
 
   # ── Bar charts: national carbon budgets ──────────────────────────────────
 
@@ -223,7 +233,7 @@ for (t in c(1.5, 2)) {
       TempTarget == t,
       AccountingFramework %in% c(0, 1),
       Country != "Rest of world",
-      AllocationPrinciple != "Grandfathering",
+      !AllocationPrinciple %in% c("Grandfathering", "Contraction and Convergence"),
       HistoricResponsibility %in% c(0, 1990, 2000, 2010)
     ) %>%
     add_comb_label()
@@ -240,9 +250,31 @@ for (t in c(1.5, 2)) {
       filter(Country %in% panel_countries) %>%
       mutate(LargeBudgets = Country %in% large)
 
+    # Build y_grouped factor: "Country§EconDevelopment" preserving Country factor order
+    bar_country_eco <- plot_data_bar %>%
+      distinct(Country, EconDevelopment) %>%
+      arrange(Country)
+    bar_y_levels <- paste(as.character(bar_country_eco$Country),
+                          as.character(bar_country_eco$EconDevelopment), sep = "§")
+    plot_data_bar <- plot_data_bar %>%
+      mutate(y_grouped = factor(
+        paste(as.character(Country), as.character(EconDevelopment), sep = "§"),
+        levels = bar_y_levels
+      ))
+
+    hlines_bar <- plot_data_bar %>%
+      distinct(Country, LargeBudgets) %>%
+      count(LargeBudgets, name = "n_countries") %>%
+      rowwise() %>%
+      mutate(yintercept = list(seq(0.5, n_countries - 0.5, 1))) %>%
+      unnest(yintercept) %>%
+      select(LargeBudgets, yintercept)
+
     PlotBudgets <- ggplot(plot_data_bar) +
+      geom_hline(data = hlines_bar, aes(yintercept = yintercept),
+                 color = "gray90", linewidth = 0.3) +
       geom_col(
-        aes(y = Country, x = NationalCarbonBudget / 1e3,
+        aes(y = y_grouped, x = NationalCarbonBudget / 1e3,
             fill = as.character(AccountingFramework)),
         position = position_dodge2()
       ) +
@@ -252,6 +284,10 @@ for (t in c(1.5, 2)) {
         labeller = labeller(HistoricResponsibility = LabelHistoricResponsibility)
       ) +
       scale_fill_scico_d(labels = LabelAccountingFramework, palette = "roma") +
+      scale_y_discrete(
+        limits = rev,
+        guide  = if (eu_panel) waiver() else guide_axis_nested(delim = "§")
+      ) +
       labs(
         x    = expression(paste("National Carbon Budget (GtCO"[2], ")")),
         fill = "", y = NULL
@@ -262,14 +298,15 @@ for (t in c(1.5, 2)) {
         strip.background.x   = element_rect(fill = "black", color = "transparent"),
         strip.text.x         = element_text(color = "white"),
         strip.background.y   = element_blank(),
-        strip.text.y         = element_blank()
+        strip.text.y         = element_blank(),
+        panel.grid.major.y   = element_blank()
       )
 
     suffix <- if (eu_panel) "EU" else ""
     ggsave(
-      sprintf("output/Graphs/ResultsCarbonBudgets%s%s.png", t, suffix),
+      figure_path(sprintf("ResultsCarbonBudgets%s%s", t, suffix)),
       PlotBudgets,
-      width = 8.38, height = 5.11, units = "in", dpi = 300
+      width = 8.38, height = if_else(eu_panel,5.11,11.5), units = "in", dpi = 300
     )
   }
 
@@ -286,26 +323,40 @@ for (t in c(1.5, 2)) {
       filter(
         TempTarget == t,
         HistoricResponsibility %in% c(0, 1990, 2000, 2010),
-        AllocationPrinciple != "Grandfathering",
+        !AllocationPrinciple %in% c("Grandfathering", "Contraction and Convergence"),
         Country %in% panel_countries
       )
 
+    # Build y_grouped factor: "Country§EconDevelopment" preserving Country factor order
+    nz_country_eco <- plot_data_nz %>%
+      distinct(Country, EconDevelopment) %>%
+      arrange(Country)
+    nz_y_levels <- paste(as.character(nz_country_eco$Country),
+                         as.character(nz_country_eco$EconDevelopment), sep = "§")
+    plot_data_nz <- plot_data_nz %>%
+      mutate(y_grouped = factor(
+        paste(as.character(Country), as.character(EconDevelopment), sep = "§"),
+        levels = nz_y_levels
+      ))
+
+    n_nz <- length(panel_countries)
     PlotNetZero <- ggplot(plot_data_nz) +
+      geom_hline(yintercept = seq(0.5, n_nz - 0.5, 1), color = "gray90", linewidth = 0.3) +
       geom_point(
-        aes(x = ImplicitNetZero, y = Country,
+        aes(x = ImplicitNetZero, y = y_grouped,
             color = AccountingFramework, fill = AccountingFramework),
         shape = 25
       ) +
       geom_text(
         size = 2, color = "palegreen4",
-        aes(x = 2060, y = Country,
+        aes(x = 2060, y = y_grouped,
             label = if_else(AnyNetZeroAbove2100 & AccountingFramework == 0.5,
                             "Net-zero after 2100", ""))
       ) +
       geom_text(
         size = 2, color = "maroon3",
-        aes(x = 2060, y = Country,
-            label = if_else(isFALSE(CompleteResultsAccounting) & AccountingFramework == 0.5,
+        aes(x = 2060, y = y_grouped,
+            label = if_else(CompleteResultsAccounting == FALSE & AccountingFramework == 0.5,
                             "Negative carbon budget", ""))
       ) +
       facet_grid(
@@ -320,6 +371,10 @@ for (t in c(1.5, 2)) {
         palette = "roma", breaks = c(1, 0.5, 0),
         labels  = c("Consumer responsibility", "Symmetrical", "Producer responsibility")
       ) +
+      scale_y_discrete(
+        limits = rev,
+        guide  = if (eu_panel) waiver() else guide_axis_nested(delim = "§")
+      ) +
       coord_cartesian(xlim = c(2020, 2100)) +
       guides(color = guide_colorbar(barwidth = 20)) +
       labs(x = "Net-zero year", y = NULL, color = "", fill = "") +
@@ -327,9 +382,9 @@ for (t in c(1.5, 2)) {
 
     suffix <- if (eu_panel) "EUMemberStates" else "AllCountries"
     ggsave(
-      sprintf("output/Graphs/%s%s.png", suffix, t),
+      figure_path(sprintf("%s%s", suffix, t)),
       PlotNetZero,
-      width = 8.38, height = 5.11, units = "in", dpi = 300
+      width = 8.38, height = if_else(eu_panel,5.11,11.5), units = "in", dpi = 300
     )
   }
 }
