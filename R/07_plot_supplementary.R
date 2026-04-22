@@ -141,25 +141,34 @@ for (country_set in c("All", "EU")) {
 
   ResultsCompareTargets <- ggplot(PlotData) +
     geom_abline(intercept = 0, slope = 1, color = "gray") +
-    annotate("rect", xmin = 2088, xmax = 2102, ymin = 2025, ymax = 2050,
-             fill = "lightgray") +
-    annotate("rect", xmin = 2018, xmax = 2032, ymin = 2080, ymax = 2100,
-             fill = "lightgray") +
+    annotate("rect", xmin = 2020, xmax = 2100, ymin = 2000, ymax = 2020,
+             , fill = "lightgray") +
+    annotate("segment", x = 2060, xend = 2060, y = 2000, yend = 2020, color = "white") +
+    annotate("text", x = 2025, y = 2015,
+             label = expression(paste("<0 CO"[2]," budget")), size = 2, hjust = 0) +
+    annotate("text", x = 2065, y = 2015, label = "Net-zero >2100", size = 2, hjust = 0) +
     geom_point(
       aes(
-        x = if_else(ConsumptionBasedBudget < 0, 2025,
-            if_else(ConsumptionBasedNetZero > 2100 | TerritorialNetZero > 2100,
-                    2095, ConsumptionBasedNetZero)),
-        y = if_else(ConsumptionBasedBudget < 0,
-            case_when(EconDevelopment == "High"         ~ 2090,
-                      EconDevelopment == "Upper-middle" ~ 2085,
-                      EconDevelopment == "Lower-middle" ~ 2080,
-                      TRUE                              ~ 2075),
-            if_else(ConsumptionBasedNetZero > 2100 | TerritorialNetZero > 2100,
-            case_when(EconDevelopment == "High"         ~ 2025,
+        x = if_else((ConsumptionBasedBudget < 0 & TerritorialBudget < 0) | (ConsumptionBasedBudget < 0 & TerritorialBudget > 0) | (ConsumptionBasedBudget > 0 & TerritorialBudget < 0), 
+          case_when(EconDevelopment == "High"         ~ 2030,
                       EconDevelopment == "Upper-middle" ~ 2030,
-                      EconDevelopment == "Lower-middle" ~ 2035,
-                      TRUE                              ~ 2040),
+                      EconDevelopment == "Lower-middle" ~ 2050,
+                      TRUE                              ~ 2050),
+            if_else(ConsumptionBasedNetZero > 2100 | TerritorialNetZero > 2100,
+                    case_when(EconDevelopment == "High"         ~ 2090,
+                      EconDevelopment == "Upper-middle" ~ 2090,
+                      EconDevelopment == "Lower-middle" ~ 2070,
+                      TRUE                              ~ 2070), ConsumptionBasedNetZero)),
+        y = if_else((ConsumptionBasedBudget < 0 & TerritorialBudget < 0) | (ConsumptionBasedBudget < 0 & TerritorialBudget > 0) | (ConsumptionBasedBudget > 0 & TerritorialBudget < 0),
+            case_when(EconDevelopment == "High"         ~ 2010,
+                      EconDevelopment == "Upper-middle" ~ 2005,
+                      EconDevelopment == "Lower-middle" ~ 2010,
+                      TRUE                              ~ 2005),
+            if_else(ConsumptionBasedNetZero > 2100 | TerritorialNetZero > 2100,
+            case_when(EconDevelopment == "High"         ~ 2005,
+                      EconDevelopment == "Upper-middle" ~ 2010,
+                      EconDevelopment == "Lower-middle" ~ 2005,
+                      TRUE                              ~ 2010),
             TerritorialNetZero)),
         color = EconDevelopment
       )
@@ -169,45 +178,51 @@ for (country_set in c("All", "EU")) {
         filter(ConsumptionBasedNetZero > 2100 | TerritorialNetZero > 2100) %>%
         count(EconDevelopment, CombHistOther, TempTarget) %>%
         filter(n > 0),
-      aes(label = n, x = 2097,
-          y = case_when(EconDevelopment == "High"         ~ 2025,
-                        EconDevelopment == "Upper-middle" ~ 2030,
-                        EconDevelopment == "Lower-middle" ~ 2035,
-                        TRUE                              ~ 2040)),
+      aes(label = n, x = case_when(EconDevelopment == "High"         ~ 2092,
+                      EconDevelopment == "Upper-middle" ~ 2092,
+                      EconDevelopment == "Lower-middle" ~ 2072,
+                      TRUE                              ~ 2072),
+          y = case_when(EconDevelopment == "High"         ~ 2005,
+                        EconDevelopment == "Upper-middle" ~ 2010,
+                        EconDevelopment == "Lower-middle" ~ 2005,
+                        TRUE                              ~ 2010)),
       hjust = 0, vjust = 0.5, size = 2
     ) +
-    annotate("text", x = 2095, y = 2045, label = ">2100", size = 2) +
+
     geom_text(
       data = PlotData %>%
-        filter(ConsumptionBasedBudget < 0) %>%
+        filter((ConsumptionBasedBudget < 0 & TerritorialBudget < 0) | (ConsumptionBasedBudget < 0 & TerritorialBudget > 0) | (ConsumptionBasedBudget > 0 & TerritorialBudget < 0)) %>%
         count(EconDevelopment, CombHistOther, TempTarget) %>%
         filter(n > 0),
-      aes(label = n, x = 2027,
-          y = case_when(EconDevelopment == "High"         ~ 2090,
-                        EconDevelopment == "Upper-middle" ~ 2085,
-                        EconDevelopment == "Lower-middle" ~ 2080,
-                        TRUE                              ~ 2075)),
+      aes(label = n, x = case_when(EconDevelopment == "High"         ~ 2032,
+                      EconDevelopment == "Upper-middle" ~ 2032,
+                      EconDevelopment == "Lower-middle" ~ 2052,
+                      TRUE                              ~ 2052),
+          y = case_when(EconDevelopment == "High"         ~ 2010,
+                        EconDevelopment == "Upper-middle" ~ 2005,
+                        EconDevelopment == "Lower-middle" ~ 2010,
+                        TRUE                              ~ 2005)),
       hjust = 0, vjust = 0.5, size = 2
     ) +
-    annotate("text", x = 2025, y = 2095,
-             label = expression(paste("<0 CO"[2])), size = 2) +
     geom_text_repel(
       data = PlotData %>%
-        filter(abs(TerritorialNetZero - ConsumptionBasedNetZero) > 4,
-               TerritorialNetZero < 2100, ConsumptionBasedNetZero < 2100),
-      aes(y = TerritorialNetZero, x = ConsumptionBasedNetZero, label = Country),
+        filter(abs(TerritorialNetZero - ConsumptionBasedNetZero) > 5,
+               TerritorialNetZero < 2100, ConsumptionBasedNetZero < 2100) %>%
+        left_join(CountryAssumptions %>% select(Country, iso3c), by = "Country"),
+      aes(y = TerritorialNetZero, x = ConsumptionBasedNetZero, label = iso3c), #stringr::str_wrap(Country, width = 10)
       size = 2, nudge_x = 0.5, nudge_y = 0.5,
-      min.segment.length = 0, max.overlaps = 30,
+      min.segment.length = 0, max.overlaps = 30, force = 5,
       xlim = c(2020, 2100), ylim = c(2020, 2100)
     ) +
     geom_text(
       data = scatter_labels,
-      aes(x = 2018, y = 2022, label = Label),
+      aes(x = 2018, y = 1998, label = Label),
       size = 2.5, color = "black"
     ) +
     facet_grid(TempTarget ~ CombHistOther, labeller = temp_labeller_scatter) +
     scale_color_manual(values = dev_cols) +
-    coord_cartesian(xlim = c(2018, 2100), ylim = c(2018, 2100)) +
+    scale_y_continuous(breaks = seq(2020,2100,20)) +
+    coord_cartesian(xlim = c(2018, 2100), ylim = c(1998, 2100)) +
     labs(
       y     = "Producing countries bear responsibility",
       x     = "Consuming countries bear responsibility",
@@ -224,7 +239,7 @@ for (country_set in c("All", "EU")) {
   ggsave(
     figure_path(sprintf("ResultsCompareTargets1.5%s", country_set)),
     ResultsCompareTargets,
-    width = 6, height = 4, units = "in", dpi = 300
+    width = 6, height = 6, units = "in", dpi = 300
   )
 }
 
