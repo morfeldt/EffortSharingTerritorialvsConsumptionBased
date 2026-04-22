@@ -21,3 +21,4 @@ library(ggrepel)      # non-overlapping text labels in ggplot2
 library(ggforce)      # additional ggplot2 geoms / faceting
 library(ggh4x)        # extended faceting helpers (facet_grid2, independent scales)
 library(scico)        # perceptually uniform scientific colour palettes
+library(legendry)     # additional ggplot2 functions

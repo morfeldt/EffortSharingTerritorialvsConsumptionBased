@@ -24,6 +24,18 @@
 
 dir.create("output/Graphs", recursive = TRUE, showWarnings = FALSE)
 
+# -----------------------------------------------------------------------------
+# Use legendry for nested y-axis (country + economic development group).
+#
+# ggh4x's guide_axis_nested() was deprecated in ggh4x 0.3.0 in favour of
+# legendry::guide_axis_nested() and is now gutted in 0.3.1 (it just returns a
+# plain guide_axis(), which is why the old nested styling stopped working).
+# Install with: install.packages("legendry")
+# -----------------------------------------------------------------------------
+if (!requireNamespace("legendry", quietly = TRUE)) {
+  stop("Package 'legendry' is required. Install with install.packages(\"legendry\").")
+}
+
 # Output filename map: old stem → new stem
 figure_stem_map <- c(
   "ResultsCompareTargets1.5All" = "Figure4",
@@ -250,15 +262,25 @@ for (t in c(1.5, 2)) {
       filter(Country %in% panel_countries) %>%
       mutate(LargeBudgets = Country %in% large)
 
-    # Build y_grouped factor: "Country§EconDevelopment" preserving Country factor order
+    # Build y_grouped factor: plain country name for large emitters and
+    # "Rest of world" (no economic development bracket); "Country§EconDevelopment"
+    # for all other countries.
     bar_country_eco <- plot_data_bar %>%
-      distinct(Country, EconDevelopment) %>%
+      distinct(Country, EconDevelopment, LargeBudgets) %>%
       arrange(Country)
-    bar_y_levels <- paste(as.character(bar_country_eco$Country),
-                          as.character(bar_country_eco$EconDevelopment), sep = "§")
+    bar_skip_bracket <- bar_country_eco$LargeBudgets |
+      as.character(bar_country_eco$Country) == "Rest of world"
+    bar_y_levels <- if_else(
+      bar_skip_bracket,
+      as.character(bar_country_eco$Country),
+      paste(as.character(bar_country_eco$Country),
+            as.character(bar_country_eco$EconDevelopment), sep = "§")
+    )
     plot_data_bar <- plot_data_bar %>%
       mutate(y_grouped = factor(
-        paste(as.character(Country), as.character(EconDevelopment), sep = "§"),
+        if_else(LargeBudgets | as.character(Country) == "Rest of world",
+                as.character(Country),
+                paste(as.character(Country), as.character(EconDevelopment), sep = "§")),
         levels = bar_y_levels
       ))
 
@@ -286,7 +308,18 @@ for (t in c(1.5, 2)) {
       scale_fill_scico_d(labels = LabelAccountingFramework, palette = "roma") +
       scale_y_discrete(
         limits = rev,
-        guide  = if (eu_panel) waiver() else guide_axis_nested(delim = "§")
+        # legendry's nested guide: `key = "§"` is passed as the `sep` argument to
+        # key_range_auto(), so the part of each label before "§" becomes the
+        # regular axis label (country) and the part after becomes a bracket
+        # label (economic development group). `levels_text` rotates the bracket
+        # labels 90° so "Upper-middle" etc. read vertically outside the line.
+        guide  = legendry::guide_axis_nested(
+          key = "§",
+          levels_text = list(
+            NULL,
+            element_text(angle = 90, hjust = 0.5, vjust = 0.5)
+          )
+        )
       ) +
       labs(
         x    = expression(paste("National Carbon Budget (GtCO"[2], ")")),
@@ -299,7 +332,10 @@ for (t in c(1.5, 2)) {
         strip.text.x         = element_text(color = "white"),
         strip.background.y   = element_blank(),
         strip.text.y         = element_blank(),
-        panel.grid.major.y   = element_blank()
+        panel.grid.major.y   = element_blank(),
+        # Styling for the legendry nested-axis bracket line + label spacing.
+        legendry.bracket      = element_line(linewidth = 0.5, colour = "gray30"),
+        legendry.bracket.size = grid::unit(1.5, "mm")
       )
 
     suffix <- if (eu_panel) "EU" else ""
@@ -327,15 +363,22 @@ for (t in c(1.5, 2)) {
         Country %in% panel_countries
       )
 
-    # Build y_grouped factor: "Country§EconDevelopment" preserving Country factor order
+    # Build y_grouped factor: "Country§EconDevelopment" for regular countries,
+    # plain country name for "Rest of world" (no economic development bracket).
     nz_country_eco <- plot_data_nz %>%
       distinct(Country, EconDevelopment) %>%
       arrange(Country)
-    nz_y_levels <- paste(as.character(nz_country_eco$Country),
-                         as.character(nz_country_eco$EconDevelopment), sep = "§")
+    nz_y_levels <- if_else(
+      as.character(nz_country_eco$Country) == "Rest of world",
+      as.character(nz_country_eco$Country),
+      paste(as.character(nz_country_eco$Country),
+            as.character(nz_country_eco$EconDevelopment), sep = "§")
+    )
     plot_data_nz <- plot_data_nz %>%
       mutate(y_grouped = factor(
-        paste(as.character(Country), as.character(EconDevelopment), sep = "§"),
+        if_else(as.character(Country) == "Rest of world",
+                as.character(Country),
+                paste(as.character(Country), as.character(EconDevelopment), sep = "§")),
         levels = nz_y_levels
       ))
 
@@ -373,12 +416,23 @@ for (t in c(1.5, 2)) {
       ) +
       scale_y_discrete(
         limits = rev,
-        guide  = if (eu_panel) waiver() else guide_axis_nested(delim = "§")
+        guide  = legendry::guide_axis_nested(
+          key = "§",
+          levels_text = list(
+            NULL,
+            element_text(angle = 90, hjust = 0.5, vjust = 0.5)
+          )
+        )
       ) +
       coord_cartesian(xlim = c(2020, 2100)) +
       guides(color = guide_colorbar(barwidth = 20)) +
       labs(x = "Net-zero year", y = NULL, color = "", fill = "") +
-      theme_supp
+      theme_supp +
+      theme(
+        # Styling for the legendry nested-axis bracket line + label spacing.
+        legendry.bracket      = element_line(linewidth = 0.5, colour = "gray30"),
+        legendry.bracket.size = grid::unit(1.5, "mm")
+      )
 
     suffix <- if (eu_panel) "EUMemberStates" else "AllCountries"
     ggsave(
