@@ -26,15 +26,17 @@ responsibility for emissions.
 ```
 main.R                        # Entry point — sources all modules in order
 R/
-  00_packages.R               # Package loading
+  00_setup.R                  # Pre-flight checks and package loading
   01_parameters.R             # Global parameters and plot labels
   02_load_data.R              # Download and read raw data
   03_prepare_data.R           # Cleaning, reshaping, Rest-of-world aggregation
   04_allocation_functions.R   # Allocation-principle helper functions
   05_calculate_budgets.R      # National carbon budget calculations (parallelised)
-  06_plot_paper.R             # Main-paper figures
-  07_plot_all_countries.R     # All-countries figures
+  06_plot_sample_countries.R  # Sample-country figures (Figures 1–3)
+  07_plot_all_countries.R     # All-countries figures (Figures 4–5, Extended Data)
   08_export.R                 # Write Excel output tables
+  09_text_data.R              # In-text statistics (sample countries + all countries)
+  10_sankey_transitions.R     # Sankey diagram of budget-category transitions (Figure 6)
 python/
   fetch_ssp_data.py           # Fetch SSP projections from IIASA (run once)
 data/
@@ -54,11 +56,21 @@ output/
 ```r
 install.packages(c(
   "tidyverse", "readxl", "openxlsx", "wbstats",
-  "doParallel", "foreach", "ggrepel", "ggforce", "ggh4x", "scico"
+  "doParallel", "foreach", "ggrepel", "ggforce", "ggh4x", "scico", "legendry"
 ))
 ```
 
 Minimum requirement: **dplyr ≥ 1.1.0** (released 2023-01).
+
+> **Note on ggplot2 version:** `legendry`'s nested axis guide is incompatible
+> with ggplot2 ≥ 4.0.0. The code is tested on ggplot2 3.5.2. To restore a
+> known-working set of packages:
+> ```r
+> remotes::install_version("ggplot2",   "3.5.2")
+> remotes::install_version("legendry",  "0.2.2")
+> remotes::install_version("ggh4x",     "0.2.8")
+> remotes::install_version("ggrepel",   "0.9.5")
+> ```
 
 ### 2. Fetch SSP scenario data (once)
 
@@ -89,12 +101,24 @@ them instead.
 
 | File | Description | Source |
 |------|-------------|--------|
-| `CountryAssumptions.xlsx` | Country list, development classification, EU membership | Compiled by authors |
-| `unpopulation_dataportal.csv` | UN Population Division data (1960–2100, medium variant, both sexes) | [UN Population Portal](https://population.un.org/dataportal/) |
-| `National_Fossil_Carbon_Emissions_2024v1.0.xlsx` | GCP national emission data | [Global Carbon Project](https://globalcarbonbudgetdata.org/) |
-| `Global_Carbon_Budget_2024_v1.0.xlsx` | GCP global carbon budget | [Global Carbon Project](https://globalcarbonbudgetdata.org/) |
+| `data/CountryAssumptions.xlsx` | Country list, development classification, EU membership | Compiled by authors |
+| `data/National_Fossil_Carbon_Emissions_2025_v0.3.xlsx` | GCP national emission data | [Global Carbon Project](https://globalcarbonbudget.org/datahub/) |
+| `data/Global_Carbon_Budget_2025_v0.6.xlsx` | GCP global carbon budget | [Global Carbon Project](https://globalcarbonbudget.org/datahub/) |
 
-Historical GDP data are downloaded automatically from the
+**UN Population data** are fetched automatically from the
+[UN Population Data Portal API](https://population.un.org/dataportalapi/) on
+the first run and cached to `data/un_population.csv`. A free Bearer token is
+required for the first run:
+
+```r
+Sys.setenv(UN_POP_TOKEN = "your_token_here")
+source("main.R")
+```
+
+Or add `UN_POP_TOKEN=your_token_here` to your `.Renviron` file
+(`usethis::edit_r_environ()`). The token is not written to any project file.
+
+**Historical GDP data** are downloaded automatically from the
 [World Bank API](https://data.worldbank.org/) at run time.
 
 ### 4. Run the analysis
