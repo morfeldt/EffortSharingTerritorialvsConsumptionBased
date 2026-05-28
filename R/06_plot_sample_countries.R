@@ -8,7 +8,7 @@
 #   output/Graphs/Figure3.png  – Fig. 3: per-capita emission trends
 #
 # Figures 1 and 2 show both temperature targets (1.5 °C and 2 °C) as two
-# rows of panels.
+# rows of panels, with countries as columns.
 # =============================================================================
 
 dir.create("output/Graphs", recursive = TRUE, showWarnings = FALSE)
@@ -19,16 +19,16 @@ SampleCountries <- c("China", "European Union", "South Africa", "Sweden", "Unite
 scico_roma_bar <- scale_color_scico(
   palette = "roma",
   breaks  = c(1, 0.5, 0),
-  labels  = c("Consuming country's responsibility",
+  labels  = c("Consuming countries' responsibility",
                "Symmetrical",
-               "Producing country's responsibility")
+               "Producing countries' responsibility")
 )
 scico_roma_fill <- scale_fill_scico(
   palette = "roma",
   breaks  = c(1, 0.5, 0),
-  labels  = c("Consuming country's responsibility",
+  labels  = c("Consuming countries' responsibility",
                "Symmetrical",
-               "Producing country's responsibility")
+               "Producing countries' responsibility")
 )
 
 # -----------------------------------------------------------------------------
@@ -48,13 +48,14 @@ prepare_sample_data <- function(df) {
                                  "Capability")
     ) %>%
     mutate(
-      CombHistOther = case_when(
+      CombHistOther = factor(case_when(
         HistoricResponsibility == 0 & AllocationPrinciple == "Annual Equal per Capita"
                                          ~ "Annual Equality",
         HistoricResponsibility == 0      ~ as.character(AllocationPrinciple),
         TRUE                             ~ paste0("Historic Responsibility from ",
                                                   HistoricResponsibility)
-      )
+      ), levels = c("Equal Cumulative per Capita", "Capability",
+                    "Annual Equality", "Historic Responsibility from 1990"))
     )
 }
 
@@ -66,7 +67,8 @@ panel_labels <- expand_grid(
   mutate(Label = paste0(letters[row_number()], ")"))
 
 # Row strip labels for temperature targets
-temp_labeller <- labeller(TempTarget = c("1.5" = "1.5°C", "2" = "2°C"))
+temp_labeller <- labeller(TempTarget = c("1.5" = "1.5°C with 50% probability",
+                                        "2"   = "2°C with 67% probability"))
 
 # Shared theme for Fig. 1 and Fig. 2
 theme_sample <- theme_bw(base_size = 9) +
@@ -96,7 +98,7 @@ Figure1 <- ggplot(DataBudgetSample) +
   geom_text(
     data = panel_labels,
     aes(x = -Inf, y = Inf, label = Label),
-    hjust = -0.3, vjust = 26.5,
+    hjust = -0.3, vjust = 1.5,
     size = 2.5, color = "black", inherit.aes = FALSE
   ) +
   facet_grid(TempTarget ~ Country, scales = "free_x",
@@ -116,7 +118,7 @@ Figure1 <- ggplot(DataBudgetSample) +
 ggsave(
   "output/Graphs/Figure1.png",
   Figure1,
-  width = 176, height = 130, units = "mm", dpi = 500
+  width = 176, height = 100, units = "mm", dpi = 500
 )
 
 # -----------------------------------------------------------------------------

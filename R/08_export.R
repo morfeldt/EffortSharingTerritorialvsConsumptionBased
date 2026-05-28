@@ -21,7 +21,7 @@ write.xlsx(
 message("Written: output/NationalCarbonBudgets.xlsx")
 
 # -----------------------------------------------------------------------------
-# Supplementary data  (assembled in 07_plot_supplementary.R)
+# Supplementary data  (assembled in 07_plot_all_countries.R)
 # -----------------------------------------------------------------------------
 # DataForSupplementary is a named list: names are "{TempTarget}{CountrySet}"
 # e.g. "1.5All", "1.5EU", "2All", "2EU"

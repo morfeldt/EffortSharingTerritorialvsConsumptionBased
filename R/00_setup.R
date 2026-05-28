@@ -1,10 +1,28 @@
 # =============================================================================
-# 00_preflight.R  –  Pre-flight checks
+# 00_setup.R  –  Pre-flight checks and package loading
 # =============================================================================
-# Verifies that all required input files and credentials are present before
-# any data loading or computation begins. Stops with a clear message if
-# anything is missing.
+# 1. Verifies that all required input files and credentials are present before
+#    any data loading or computation begins. Stops with a clear message if
+#    anything is missing.
+# 2. Loads all required packages so dependencies are visible in one place.
+#
+# To install any missing packages run:
+#   install.packages(c("tidyverse", "readxl", "openxlsx", "wbstats","doParallel", "foreach", "ggrepel", "ggforce", "ggh4x", "scico", "legendry", "ggalluvial"))
+#
+# Minimum versions: dplyr >= 1.1.0 (for reframe()), tidyr >= 1.0.0
+#
+# KNOWN WORKING VERSIONS (as of May 2026)
+# ggplot2  3.5.2  –  ggplot2 >= 4.0.0 rewrote the guide system in a way that
+#                    breaks legendry's nested axis. Stay on 3.5.2 until legendry
+#                    is updated. To restore:
+#                      remotes::install_version("ggplot2",  "3.5.2")
+#                      remotes::install_version("legendry", "0.2.2")
+#                      remotes::install_version("ggh4x",    "0.2.8")
+#                      remotes::install_version("ggrepel",  "0.9.5")
+#                      remotes::install_version("ggalluvial", "0.12.5")
 # =============================================================================
+
+# ─── Pre-flight checks ────────────────────────────────────────────────────────
 
 .problems <- character(0)
 
@@ -54,3 +72,19 @@ if (length(.problems) > 0) {
   stop("Resolve the issues above, then re-run main.R.", call. = FALSE)
 }
 rm(.problems)
+
+# ─── Load packages ────────────────────────────────────────────────────────────
+
+library(tidyverse)    # ggplot2, dplyr, tidyr, readr, purrr, stringr, forcats
+library(readxl)       # read Excel files (replaces xlsx / reshape2)
+library(openxlsx)     # write multi-sheet Excel files
+library(wbstats)      # World Bank API
+library(doParallel)   # parallel back-end for foreach
+library(foreach)      # parallel iteration
+library(ggrepel)      # non-overlapping text labels in ggplot2
+library(ggforce)      # additional ggplot2 geoms / faceting
+library(ggh4x)        # extended faceting helpers (facet_grid2, independent scales)
+library(scico)        # perceptually uniform scientific colour palettes
+library(legendry)     # nested axis guide for supplementary figures
+# ggalluvial not loaded: incompatible with ggplot2 3.5.2 (calls gg_par from 4.0.x)
+# Sankey diagrams use ggforce::geom_parallel_sets instead.

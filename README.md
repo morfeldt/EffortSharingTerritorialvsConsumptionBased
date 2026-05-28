@@ -1,8 +1,8 @@
-# Fair-Share Carbon Budgets under Dual Accounting
+# Net-Zero Targets under Dual Emissions Accounting and Global Effort Sharing
 
 Replication code for:
 
-> **"National mitigation ambition under dual accounting systems"**  
+> **"Net-Zero Targets under Dual Emissions Accounting and Global Effort Sharing"**  
 > *[Authors, Journal, Year — to be updated upon acceptance]*
 
 ---
@@ -33,7 +33,7 @@ R/
   04_allocation_functions.R   # Allocation-principle helper functions
   05_calculate_budgets.R      # National carbon budget calculations (parallelised)
   06_plot_paper.R             # Main-paper figures
-  07_plot_supplementary.R     # Supplementary figures
+  07_plot_all_countries.R     # All-countries figures
   08_export.R                 # Write Excel output tables
 python/
   fetch_ssp_data.py           # Fetch SSP projections from IIASA (run once)

@@ -17,7 +17,7 @@ NoCores <- 4 #max(1L, detectCores() - 1L)
 # Units: GtCO2
 CarbonBudget <- tibble(
   TempTarget  = c(1.5, 2),
-  BudgetGtCO2 = c(500, 900)
+  BudgetGtCO2 = c(500, 1150)
 )
 
 # -----------------------------------------------------------------------------
