@@ -2,7 +2,7 @@
 # 05_calculate_budgets.R  –  National carbon budget calculations
 # =============================================================================
 # Computes national carbon budgets for all combinations of:
-#   AllocationPrinciple  × TempTarget × AccountingFramework × HistoricResponsibility × Country
+#   AllocationPrinciple  × TempTarget × WeightResponsibility × HistoricResponsibility × Country
 #
 # The inner loop is parallelised with doParallel / foreach.
 #
@@ -11,18 +11,16 @@
 
 # Allocation principles and loop dimensions -----------------------------------
 AllocationPrinciples <- c(
-  "Equal Cumulative per Capita",
-  "Annual Equal per Capita",
-  "Grandfathering",
-  "Contraction and Convergence",
+  "Historic Responsibility from 1990",
+  "Annual Equality",
   "Capability"
 )
 
-# AccountingFramework values: 0 = full territorial, 1 = full consumption-based
-AccountingFrameworkValues <- seq(0, 1, by = 0.05)  # 21 values
+# WeightResponsibility values: 0 = full territorial, 1 = full consumption-based
+WeightResponsibilityValues <- seq(0, 1, by = 0.05)  # 21 values
 
 # Historic responsibility base years (0 = no historic responsibility)
-HistoricYears <- c(0, seq(1990, 2021, by = 5))
+HistoricYears <- c(0, 1990)
 
 # iso3c codes to compute budgets for (excluding World); names used only for output
 BudgetCountries <- CountryAssumptions$iso3c[CountryAssumptions$Country != "World"]
@@ -44,7 +42,7 @@ NationalCarbonBudgets <-
     .combine = "rbind"
   ) %:%
   foreach(
-    acct = AccountingFrameworkValues,
+    acct = WeightResponsibilityValues,
     .combine = "rbind"
   ) %:%
   foreach(
@@ -54,22 +52,20 @@ NationalCarbonBudgets <-
   foreach(
     country = BudgetCountries,   # holds iso3c; name resolved only in output
     .combine  = "rbind",
-    .packages = c("dplyr", "purrr"),
-    .export   = c("DataSSPFutureGDP", "SSPScenario",
-                  "AnnualCapability", "AnnualPerCapitaConvergence")
+    .packages = c("dplyr", "purrr")
   ) %dopar% {
 
     # ----- Skip invalid combinations ----------------------------------------
-    # "Equal Cumulative per Capita" requires a historic base year (base_year != 0).
+    # "Historic Responsibility from 1990" uses base_year = 1990.
     # All other principles use no historic base year (base_year == 0).
-    valid_combo <- (alloc == "Equal Cumulative per Capita" & base_year != 0) |
-                   (alloc != "Equal Cumulative per Capita" & base_year == 0)
+    valid_combo <- (alloc == "Historic Responsibility from 1990" & base_year != 0) |
+                   (alloc != "Historic Responsibility from 1990" & base_year == 0)
     if (!valid_combo) return(NULL)
 
-    # ----- Skip ECPC if consumption emissions are incomplete for base_year:YearEnd --
+    # ----- Skip HR-1990 if consumption emissions are incomplete for base_year:YearEnd --
     # Countries with NA consumption data in any year of the historical
-    # responsibility window cannot produce a valid ECPC budget.
-    if (alloc == "Equal Cumulative per Capita") {
+    # responsibility window cannot produce a valid budget.
+    if (alloc == "Historic Responsibility from 1990") {
       cons_vals <- DataGlobalCarbonBudget$EmissionsMtCO2[
         DataGlobalCarbonBudget$iso3c      == country &
         DataGlobalCarbonBudget$Accounting == "Consumption Emissions" &
@@ -80,21 +76,21 @@ NationalCarbonBudgets <-
 
     # ----- Year at which global net-zero is reached --------------------------
     budget_MtCO2 <- CarbonBudget$BudgetGtCO2[CarbonBudget$TempTarget == temp] * 1e3
-    E2021 <- DataGlobalCarbonBudget$EmissionsMtCO2[
+    E_YearEnd <- DataGlobalCarbonBudget$EmissionsMtCO2[
       DataGlobalCarbonBudget$iso3c       == "WLD" &
       DataGlobalCarbonBudget$Accounting  == "World" &
       DataGlobalCarbonBudget$Year        == YearEnd
     ]
-    GlobalNetZero <- YearBudget + 2 * budget_MtCO2 / E2021
+    GlobalNetZero <- YearBudget + 2 * budget_MtCO2 / E_YearEnd
 
     # ----- Compute national budget ------------------------------------------
     NationalBudget <- switch(alloc,
 
-      # Equal Cumulative per Capita (Eq. 1 in paper)
-      # Budget = (global budget + cumulative global emissions from base_year to 2021)
+      # Historic Responsibility from 1990 (Eq. 1 in paper)
+      # Budget = (global budget + cumulative global emissions from base_year to YearEnd)
       #          × (cumulative population share from base_year to net-zero)
-      #          – (cumulative national emissions from base_year to 2021, blended)
-      "Equal Cumulative per Capita" = {
+      #          – (cumulative national emissions from base_year to YearEnd, blended)
+      "Historic Responsibility from 1990" = {
         global_hist <- DataGlobalCarbonBudget %>%
           filter(iso3c == "WLD", Accounting == "World",
                  Year %in% base_year:YearEnd) %>%
@@ -120,9 +116,9 @@ NationalCarbonBudgets <-
           ((1 - acct) * hist_c_terr + acct * hist_c_cons)
       },
 
-      # Annual Equal per Capita (Eq. 2)
+      # Annual Equality (Eq. 2)
       # Each year's global budget is split proportionally to population
-      "Annual Equal per Capita" = {
+      "Annual Equality" = {
         global_curve <- GlobalEmissionCurves %>%
           filter(TempTarget == temp, Year %in% YearBudget:YearHorizon)
         pop_c <- DataPopulation %>%
@@ -132,33 +128,6 @@ NationalCarbonBudgets <-
           filter(iso3c == "WLD", Year %in% YearBudget:YearHorizon) %>%
           arrange(Year) %>% pull(Population)
         sum(global_curve$EmissionsMtCO2 * pop_c / pop_w)
-      },
-
-      # Grandfathering
-      # Budget = global budget × country's share of 2021 emissions (blended)
-      "Grandfathering" = {
-        e_terr <- DataGlobalCarbonBudget$EmissionsMtCO2[
-          DataGlobalCarbonBudget$iso3c      == country &
-          DataGlobalCarbonBudget$Year       == YearEnd &
-          DataGlobalCarbonBudget$Accounting == "Territorial Emissions"
-        ]
-        e_cons <- DataGlobalCarbonBudget$EmissionsMtCO2[
-          DataGlobalCarbonBudget$iso3c      == country &
-          DataGlobalCarbonBudget$Year       == YearEnd &
-          DataGlobalCarbonBudget$Accounting == "Consumption Emissions"
-        ]
-        e_world <- DataGlobalCarbonBudget$EmissionsMtCO2[
-          DataGlobalCarbonBudget$iso3c      == "WLD" &
-          DataGlobalCarbonBudget$Year       == YearEnd &
-          DataGlobalCarbonBudget$Accounting == "World"
-        ]
-        budget_MtCO2 * ((1 - acct) * e_terr + acct * e_cons) / e_world
-      },
-
-      # Contraction and Convergence
-      # Convergence to equal per-capita by 2050 (see AnnualPerCapitaConvergence)
-      "Contraction and Convergence" = {
-        AnnualPerCapitaConvergence(country, temp, acct, conv_year = 2050)
       },
 
       # Capability
@@ -196,7 +165,7 @@ NationalCarbonBudgets <-
       EconDevelopment        = CountryAssumptions$Development[CountryAssumptions$iso3c == country],
       AllocationPrinciple    = alloc,
       TempTarget             = temp,
-      AccountingFramework    = acct,
+      WeightResponsibility    = acct,
       HistoricResponsibility = base_year,
       NationalCarbonBudget   = NationalBudget,
       ImplicitNetZero        = ImplicitNetZero,
@@ -215,7 +184,7 @@ message("Budget calculation complete.")
 # Flag whether ALL accounting-framework values give a positive budget
 # (CompleteResultsAccounting = TRUE), none do (FALSE), or some do (NA).
 # Also flag whether ALL yield a net-zero year after 2100.
-n_acct_values <- length(AccountingFrameworkValues)   # 21
+n_acct_values <- length(WeightResponsibilityValues)   # 21
 
 NationalCarbonBudgets <- NationalCarbonBudgets %>%
   group_by(Country, AllocationPrinciple, TempTarget, HistoricResponsibility) %>%
@@ -238,11 +207,11 @@ NationalCarbonBudgets <- NationalCarbonBudgets %>%
 NationalCarbonBudgets <- NationalCarbonBudgets %>%
   left_join(
     NationalCarbonBudgets %>%
-      filter(AccountingFramework %in% c(0, 1)) %>%
+      filter(WeightResponsibility %in% c(0, 1)) %>%
       select(Country, AllocationPrinciple, TempTarget, HistoricResponsibility,
-             AccountingFramework, ImplicitNetZero) %>%
+             WeightResponsibility, ImplicitNetZero) %>%
       pivot_wider(
-        names_from   = AccountingFramework,
+        names_from   = WeightResponsibility,
         values_from  = ImplicitNetZero,
         names_prefix = "NZ_"
       ) %>%

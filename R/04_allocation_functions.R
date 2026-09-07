@@ -2,35 +2,34 @@
 # 04_allocation_functions.R  –  Allocation-principle helper functions
 # =============================================================================
 # This module defines:
-#   GlobalEmissionCurves          – global linear emission pathway to net-zero
-#   AnnualCapability()            – Capability allocation (Supplementary Eq. 4)
-#   AnnualPerCapitaConvergence()  – Contraction & Convergence (Supplementary Eq. 3)
+#   GlobalEmissionCurves  – global linear emission pathway to net-zero
+#   AnnualCapability()    – Capability allocation
 #
-# Both allocation functions reference GlobalEmissionCurves, which is therefore
+# AnnualCapability references GlobalEmissionCurves, which is therefore
 # computed first.
 # =============================================================================
 
 # -----------------------------------------------------------------------------
 # Global emission pathways
 # -----------------------------------------------------------------------------
-# For each temperature target, construct a linear decline from 2022 emissions
+# For each temperature target, construct a linear decline from YearEnd emissions
 # to zero at the year implied by the remaining carbon budget.
 # Each row gives the average annual global emissions (MtCO₂) for that year.
 #
-# GlobalNetZero = 2022 + 2 × Budget / E₂₀₂₁
-# (factor 2 arises from integrating a linear ramp from E₂₀₂₁ to 0)
+# GlobalNetZero = YearBudget + 2 × Budget / E_YearEnd
+# (factor 2 arises from integrating a linear ramp from E_YearEnd to 0)
 
 GlobalEmissionCurves <-
   map_dfr(CarbonBudget$TempTarget, function(t) {
     budget_MtCO2 <- CarbonBudget$BudgetGtCO2[CarbonBudget$TempTarget == t] * 1e3
-    E2021 <- DataGlobalCarbonBudget %>%
+    E_YearEnd <- DataGlobalCarbonBudget %>%
       filter(Country == "World", Accounting == "World", Year == YearEnd) %>%
       pull(EmissionsMtCO2)
-    GlobalNetZero <- YearBudget + 2 * budget_MtCO2 / E2021
+    GlobalNetZero <- YearBudget + 2 * budget_MtCO2 / E_YearEnd
 
-    # Linear decline: emissions(x) = max(0, E2021 × (1 - (x - 2022)/(NZ - 2022)))
+    # Linear decline: emissions(x) = max(0, E_YearEnd × (1 - (x - YearBudget)/(NZ - YearBudget)))
     linear_e <- function(x) {
-      pmax(0, E2021 * (1 - (x - YearBudget) / (GlobalNetZero - YearBudget)))
+      pmax(0, E_YearEnd * (1 - (x - YearBudget) / (GlobalNetZero - YearBudget)))
     }
 
     tibble(TempTarget = t, Year = YearBudget:YearHorizon) %>%
@@ -89,59 +88,3 @@ AnnualCapability <- function(country_iso3c, temp_target) {
   }), na.rm = TRUE)
 }
 
-# -----------------------------------------------------------------------------
-# Contraction and Convergence allocation
-# -----------------------------------------------------------------------------
-# Shares converge linearly from current emission shares to equal per-capita
-# shares by ConvYear (default 2050).  See Supplementary Equation 3.
-#
-# Arguments:
-#   country            – character, country name
-#   temp_target        – numeric temperature target (1.5 or 2)
-#   accounting_weight  – numeric in [0, 1]; weight on consumption-based share
-#                        (0 = territorial only, 1 = consumption-based only)
-#   conv_year          – integer convergence year (default 2050)
-#
-# Returns: scalar budget in MtCO₂
-
-AnnualPerCapitaConvergence <- function(country_iso3c, temp_target,
-                                       accounting_weight, conv_year = 2050) {
-
-  # Current (YearEnd) emission share of this country
-  e_terr <- DataGlobalCarbonBudget %>%
-    filter(iso3c == country_iso3c, Accounting == "Territorial Emissions",
-           Year == YearEnd) %>%
-    pull(EmissionsMtCO2)
-  e_cons <- DataGlobalCarbonBudget %>%
-    filter(iso3c == country_iso3c, Accounting == "Consumption Emissions",
-           Year == YearEnd) %>%
-    pull(EmissionsMtCO2)
-  e_world <- DataGlobalCarbonBudget %>%
-    filter(iso3c == "WLD", Accounting == "World", Year == YearEnd) %>%
-    pull(EmissionsMtCO2)
-
-  current_share <- ((1 - accounting_weight) * e_terr +
-                      accounting_weight  * e_cons) / e_world
-
-  sum(map_dbl(YearBudget:YearHorizon, function(yr) {
-    global_e <- GlobalEmissionCurves %>%
-      filter(TempTarget == temp_target, Year == yr) %>%
-      pull(EmissionsMtCO2)
-
-    pop_c     <- DataPopulation %>%
-      filter(iso3c == country_iso3c, Year == yr) %>%
-      pull(Population)
-    pop_world <- DataPopulation %>%
-      filter(Country == "World", Year == yr) %>%
-      pull(Population)
-
-    if (length(global_e) != 1 || length(pop_c) != 1 || length(pop_world) != 1) return(NA_real_)
-
-    # Linear interpolation between current share and equal per-capita share
-    conv_weight <- min((yr - YearEnd) / (conv_year - YearEnd), 1)
-    share <- conv_weight * (pop_c / pop_world) +
-             (1 - conv_weight) * current_share
-
-    global_e * share
-  }), na.rm = TRUE)
-}

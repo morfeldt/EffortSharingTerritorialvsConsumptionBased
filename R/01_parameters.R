@@ -6,14 +6,14 @@
 # Parallel computing
 # -----------------------------------------------------------------------------
 # Number of CPU cores used for the budget calculation (05_calculate_budgets.R).
-# Set to 1 to disable parallelism (useful for debugging).
+# Set to 1 to disable parallel computing (useful for debugging).
 NoCores <- 4 #max(1L, detectCores() - 1L)
 
 # -----------------------------------------------------------------------------
-# Carbon budgets (starting from 2022)
+# Carbon budgets (starting from 2024)
 # -----------------------------------------------------------------------------
 # Source: IPCC AR6 WG1, Table SPM.2 (50th percentile for 1.5 °C, 67th for 2 °C)
-# Adjusted for 2020–2021 actual emissions using GCP data (see 03_prepare_data.R).
+# Adjusted for 2020–2023 actual emissions using GCP data (see 03_prepare_data.R).
 # Units: GtCO2
 CarbonBudget <- tibble(
   TempTarget  = c(1.5, 2),
@@ -23,15 +23,13 @@ CarbonBudget <- tibble(
 # -----------------------------------------------------------------------------
 # SSP scenario settings
 # -----------------------------------------------------------------------------
-# Scenario used for Capability and Contraction-and-Convergence allocation principles.
+# Scenario used for future population and GDP projections (all allocation principles).
 SSPScenario <- "SSP2"
 
 # Model names for GDP and population projections from the SSP database.
-# Set to NULL to auto-select the first model found in data/ssp_data.csv.
-# After running python/fetch_ssp_data.py, check data/ssp_data.csv for available
-# models and set these explicitly for reproducibility, e.g.:
-#   SSPModelGDP        <- "OECD ENV-Growth 2023"
-#   SSPModelPopulation <- "IIASA-WiC POP 2023"
+# Must exactly match a model name in data/ssp_data.csv — an error is raised
+# at load time if the value is missing or not found in the data. After running
+# python/fetch_ssp_data.py, check data/ssp_data.csv for available model names.
 SSPModelGDP        <- "OECD ENV-Growth 2025"
 SSPModelPopulation <- "IIASA-WiC POP 2025"
 
@@ -58,23 +56,20 @@ EUStatesISO2 <- c(
 # -----------------------------------------------------------------------------
 # Plot labels
 # -----------------------------------------------------------------------------
-# Accounting framework axis labels (f = 0: territorial, f = 1: consumption-based)
-LabelAccountingFramework <- c(
-  "0" = "Territorial\naccounting",
-  "1" = "Consumption-based\naccounting"
+# Weight for assigning responsibility axis labels (α = 0: territorial, α = 1: consumption-based)
+LabelWeightResponsibility <- c(
+  "0" = "Full weight on territorial emissions",
+  "0.5" = "Equal weighting",
+  "1" = "Full weight on consumption-based emissions"
+)
+
+LabelTempTarget <- c(
+  "1.5" = "1.5°C with 50% probability",
+  "2"   = "2°C with 67% probability"
 )
 
 # Emission type labels (used in trend plots)
 LabelEmissions <- c(
   "Consumption Emissions"  = "Consumption-based emissions",
   "Territorial Emissions"  = "Territorial emissions"
-)
-
-# Historic responsibility year labels
-LabelHistoricResponsibility <- c(
-  "0" = "No historic responsibility",
-  setNames(
-    paste0("Historic responsibility from ", seq(1990, 2021, 5)),
-    as.character(seq(1990, 2021, 5))
-  )
 )

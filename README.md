@@ -10,14 +10,14 @@ Replication code for:
 ## Overview
 
 This repository contains the R code used to derive national carbon budgets
-and implied net-zero years under a dual (territorial + consumption-based)
+and implied net-zero emission years under a dual (territorial + consumption-based)
 accounting framework, and to produce all figures in the paper and supplementary
 material.
 
 The key finding is that assessments of national mitigation ambition are
-sensitive not only to the carbon budget allocation principle applied, but also
-to the weight assigned to producing versus consuming countries in bearing
-responsibility for emissions.
+sensitive not only to the carbon budget effort sharing approach applied, but also
+to the weight assigned to territorial versus consumption-based emissions when
+assigning responsibility to individual countries.
 
 ---
 
@@ -34,17 +34,15 @@ R/
   05_calculate_budgets.R      # National carbon budget calculations (parallelised)
   06_plot_sample_countries.R  # Sample-country figures (Figures 1–3)
   07_plot_all_countries.R     # All-countries figures (Figures 4–5, Extended Data)
-  08_export.R                 # Write Excel output tables
-  09_text_data.R              # In-text statistics (sample countries + all countries)
-  10_sankey_transitions.R     # Sankey diagram of budget-category transitions (Figure 6)
+  08_plot_sankey_transitions.R# Sankey diagram of budget-category transitions (Figure 6)
+  09_export.R                 # Write SupplementaryData.xlsx (all tables + in-text data)
 python/
   fetch_ssp_data.py           # Fetch SSP projections from IIASA (run once)
 data/
   ssp_data.csv                # SSP output from fetch_ssp_data.py (not in repo)
 output/
   Graphs/                     # PNG figures (created on first run)
-  NationalCarbonBudgets.xlsx  # Full results table
-  DataForSupplementary.xlsx   # Data underlying supplementary figures
+  SupplementaryData.xlsx      # All output tables: full results, figure data, and in-text statistics
 ```
 
 ---
@@ -55,7 +53,7 @@ output/
 
 ```r
 install.packages(c(
-  "tidyverse", "readxl", "openxlsx", "wbstats",
+  "tidyverse", "readxl", "openxlsx", "httr2", "wbstats",
   "doParallel", "foreach", "ggrepel", "ggforce", "ggh4x", "scico", "legendry"
 ))
 ```
@@ -92,16 +90,10 @@ SSPModelGDP        <- "OECD ENV-Growth 2023"   # example — check your output
 SSPModelPopulation <- "IIASA-WiC POP 2023"     # example — check your output
 ```
 
-**If you cannot access the IIASA database**, place `iamc_db_GDP.xlsx` and
-`iamc_db_POP.xlsx` (IAMC wide format, downloaded manually from the SSP portal)
-in the project root.  `R/02_load_data.R` will detect the xlsx files and use
-them instead.
-
 ### 3. Provide remaining input files
 
 | File | Description | Source |
 |------|-------------|--------|
-| `data/CountryAssumptions.xlsx` | Country list, development classification, EU membership | Compiled by authors |
 | `data/National_Fossil_Carbon_Emissions_2025_v0.3.xlsx` | GCP national emission data | [Global Carbon Project](https://globalcarbonbudget.org/datahub/) |
 | `data/Global_Carbon_Budget_2025_v0.6.xlsx` | GCP global carbon budget | [Global Carbon Project](https://globalcarbonbudget.org/datahub/) |
 
@@ -118,8 +110,10 @@ source("main.R")
 Or add `UN_POP_TOKEN=your_token_here` to your `.Renviron` file
 (`usethis::edit_r_environ()`). The token is not written to any project file.
 
-**Historical GDP data** are downloaded automatically from the
-[World Bank API](https://data.worldbank.org/) at run time.
+**Country classifications** (income level, canonical names, ISO codes) are
+downloaded automatically from the
+[World Bank API](https://data.worldbank.org/) at run time and cached to
+`data/wb_classif.csv`.
 
 ### 4. Run the analysis
 
@@ -139,20 +133,16 @@ All figures are saved to `output/Graphs/` and tables to `output/`.
 
 ## Carbon budget allocation principles
 
-Five allocation principles are implemented (see Supplementary Methods):
+Three allocation principles are implemented (see Supplementary Methods):
 
 | Principle | Description |
 |-----------|-------------|
-| Equal Cumulative per Capita | Equal per-capita share of the cumulative budget from a historic base year |
-| Annual Equal per Capita | Equal per-capita share of the annual global emission pathway |
-| Grandfathering | Proportional to current (2021) emission share |
-| Contraction and Convergence | Convergence to equal per capita by 2050 |
+| Historic Responsibility from 1990 | Equal per-capita share of the cumulative budget, accounting for emissions since 1990 |
+| Annual Equality | Equal per-capita share of the annual global emission pathway |
 | Capability | Inverse weighting by GDP per unit of population² |
 
-The `AccountingFramework` parameter (*f*) ranges from 0 (full territorial
+The `WeightResponsibility` parameter (*α*) ranges from 0 (full territorial
 responsibility) to 1 (full consumption-based responsibility), in steps of 0.05.
-For the Equal Cumulative per Capita principle, historic base years from 1990 to
-2021 (in 5-year steps) are used.
 
 ---
 
@@ -160,12 +150,12 @@ For the Equal Cumulative per Capita principle, historic base years from 1990 to
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `NoCores` | `detectCores() - 1` | CPU cores for parallel budget calculation |
-| `CarbonBudget` | 500 GtCO₂ (1.5 °C), 900 GtCO₂ (2 °C) | AR6 WG1 budgets (adjusted for 2020–2021) |
-| `SSPScenario` | `"SSP2"` | SSP scenario used for Capability and C&C |
-| `SSPModelGDP` | `NULL` (auto) | Model for GDP|PPP projections |
-| `SSPModelPopulation` | `NULL` (auto) | Model for population projections |
-| `YearEnd` | `2021` | Last year with observed GCP emissions |
+| `NoCores` | `4` | CPU cores for parallel budget calculation |
+| `CarbonBudget` | 500 GtCO₂ (1.5 °C), 1150 GtCO₂ (2 °C) | AR6 WG1 budgets (adjusted for 2020–2023) |
+| `SSPScenario` | `"SSP2"` | SSP scenario used for all allocation principles |
+| `SSPModelGDP` | `OECD ENV-Growth 2025` | Model for GDP\|PPP projections — must match a model name in `data/ssp_data.csv` |
+| `SSPModelPopulation` | `IIASA-WiC POP 2025` | Model for population projections — must match a model name in `data/ssp_data.csv` |
+| `YearEnd` | `2023` | Last year with observed GCP emissions |
 
 ---
 

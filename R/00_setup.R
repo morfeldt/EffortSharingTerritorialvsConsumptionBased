@@ -7,42 +7,35 @@
 # 2. Loads all required packages so dependencies are visible in one place.
 #
 # To install any missing packages run:
-#   install.packages(c("tidyverse", "readxl", "openxlsx", "wbstats","doParallel", "foreach", "ggrepel", "ggforce", "ggh4x", "scico", "legendry", "ggalluvial"))
-#
-# Minimum versions: dplyr >= 1.1.0 (for reframe()), tidyr >= 1.0.0
-#
-# KNOWN WORKING VERSIONS (as of May 2026)
-# ggplot2  3.5.2  –  ggplot2 >= 4.0.0 rewrote the guide system in a way that
-#                    breaks legendry's nested axis. Stay on 3.5.2 until legendry
-#                    is updated. To restore:
-#                      remotes::install_version("ggplot2",  "3.5.2")
-#                      remotes::install_version("legendry", "0.2.2")
-#                      remotes::install_version("ggh4x",    "0.2.8")
-#                      remotes::install_version("ggrepel",  "0.9.5")
-#                      remotes::install_version("ggalluvial", "0.12.5")
+#   install.packages(c("tidyverse", "readxl", "openxlsx", "httr2", "wbstats", "doParallel", "foreach", "ggrepel", "ggforce", "ggh4x", "scico", "legendry"))
 # =============================================================================
+
+# ─── Global Carbon Project file names ─────────────────────────────────────────
+# Update these when a new GCB release is published (e.g. "...2026v1.0.xlsx").
+# Files must be placed in the data/ directory.
+# Download from: https://globalcarbonbudget.org/datahub/
+
+GCB_NATIONAL_FILE <- "data/National_Fossil_Carbon_Emissions_2025_v0.3.xlsx"
+GCB_GLOBAL_FILE   <- "data/Global_Carbon_Budget_2025_v0.6.xlsx"
 
 # ─── Pre-flight checks ────────────────────────────────────────────────────────
 
 .problems <- character(0)
 
 # 1. Global Carbon Project data files
-#    Download from: https://globalcarbonbudget.org/datahub/
-#    Two files are needed — update the filenames in 02_load_data.R if a new
-#    version has been published (e.g. "...2025v1.0.xlsx").
-if (!file.exists("data/National_Fossil_Carbon_Emissions_2025_v0.3.xlsx"))
+if (!file.exists(GCB_NATIONAL_FILE))
   .problems <- c(.problems, paste(
-    "MISSING: National_Fossil_Carbon_Emissions_2025_v0.3.xlsx",
+    paste0("MISSING: ", GCB_NATIONAL_FILE),
     "  Download from https://globalcarbonbudget.org/datahub/ and place in",
-    "  the project root. If a newer version is available, also update the",
-    "  filename on line 48 of R/02_load_data.R.", sep = "\n"))
+    "  data/. If a newer version is available, also update GCB_NATIONAL_FILE",
+    "  at the top of R/00_setup.R.", sep = "\n"))
 
-if (!file.exists("data/Global_Carbon_Budget_2025_v0.6.xlsx"))
+if (!file.exists(GCB_GLOBAL_FILE))
   .problems <- c(.problems, paste(
-    "MISSING: Global_Carbon_Budget_2025_v0.6.xlsx",
+    paste0("MISSING: ", GCB_GLOBAL_FILE),
     "  Download from https://globalcarbonbudget.org/datahub/ and place in",
-    "  the project root. If a newer version is available, also update the",
-    "  filename on line 69 of R/02_load_data.R.", sep = "\n"))
+    "  data/. If a newer version is available, also update GCB_GLOBAL_FILE",
+    "  at the top of R/00_setup.R.", sep = "\n"))
 
 # 2. UN Population data (only needed on first run; cached afterwards)
 if (!file.exists("data/un_population.csv") &&
@@ -86,5 +79,3 @@ library(ggforce)      # additional ggplot2 geoms / faceting
 library(ggh4x)        # extended faceting helpers (facet_grid2, independent scales)
 library(scico)        # perceptually uniform scientific colour palettes
 library(legendry)     # nested axis guide for supplementary figures
-# ggalluvial not loaded: incompatible with ggplot2 3.5.2 (calls gg_par from 4.0.x)
-# Sankey diagrams use ggforce::geom_parallel_sets instead.

@@ -4,6 +4,8 @@
 .httr-oauth
 .DS_Store
 .quarto
+.claude/
 output/
 data/
 old/
+ppt_plots.R

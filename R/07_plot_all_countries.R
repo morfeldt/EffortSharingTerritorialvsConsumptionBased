@@ -4,11 +4,11 @@
 # Produces:
 #
 #   output/Graphs/Figure4.png
-#     Scatter: territorial vs consumption-based net-zero year,
+#     Scatter: territorial vs consumption-based net-zero emission year,
 #     coloured by embodied emissions balance (all non-EU countries)
 #
 #   output/Graphs/Figure5.png
-#     Scatter: territorial vs consumption-based net-zero year,
+#     Scatter: territorial vs consumption-based net-zero emission year,
 #     coloured by economic development (all non-EU countries)
 #
 #   output/Graphs/ExtendedDataFigure1.png
@@ -62,37 +62,18 @@ theme_supp <- theme_bw(base_size = 9) +
     panel.grid.major.y = element_blank()
   )
 
-# Helper: build "CombHistOther" label used in scatter plots -------------------
-comb_hist_levels <- c("Historic Responsibility from 1990",
+principle_levels <- c("Historic Responsibility from 1990",
                       "Capability",
-                      "Annual Equality",
-                      "Equal Cumulative per Capita")
+                      "Annual Equality")
 
-add_comb_label <- function(df) {
-  df %>% mutate(
-    CombHistOther = factor(case_when(
-      HistoricResponsibility == 0 & AllocationPrinciple == "Annual Equal per Capita"
-                                       ~ "Annual Equality",
-      HistoricResponsibility == 0      ~ as.character(AllocationPrinciple),
-      TRUE                             ~ paste0("Historic Responsibility from ",
-                                                HistoricResponsibility)
-    ), levels = comb_hist_levels)
-  )
-}
-
-# Panel letter labels for scatter plots (3 panels: no C&C, no ECPC with HR=0, HR=1990 only)
-# a-c for 1.5°C, d-f for 2°C; CombHistOther as factor to enforce panel order
+# Panel letter labels for scatter plots: a-c for 1.5°C, d-f for 2°C
 scatter_labels <- expand_grid(
-  TempTarget    = c(1.5, 2),
-  CombHistOther = factor(
-    c("Historic Responsibility from 1990", "Capability", "Annual Equality"),
-    levels = comb_hist_levels
-  )
+  TempTarget          = c(1.5, 2),
+  AllocationPrinciple = factor(principle_levels, levels = principle_levels)
 ) %>%
   mutate(Label = paste0(letters[row_number()], ")"))
 
-temp_labeller_scatter <- labeller(TempTarget = c("1.5" = "1.5°C with 50% probability",
-                                               "2"   = "2°C with 67% probability"))
+temp_labeller_scatter <- labeller(TempTarget = LabelTempTarget)
 
 # -----------------------------------------------------------------------------
 # Figure 5 – scatter combining both temperature targets as rows
@@ -107,18 +88,15 @@ panel_iso_scatter <- CountryAssumptions %>%
 base_data <- NationalCarbonBudgets %>%
   filter(
     Country %in% panel_iso_scatter,
-    TempTarget %in% c(1.5, 2),
-    HistoricResponsibility %in% c(0, 1990),
-    !AllocationPrinciple %in% c("Grandfathering", "Contraction and Convergence"),
-    !(AllocationPrinciple == "Equal Cumulative per Capita" & HistoricResponsibility == 0)
+    TempTarget %in% c(1.5, 2)
   ) %>%
-  add_comb_label()
+  mutate(AllocationPrinciple = factor(AllocationPrinciple, levels = principle_levels))
 
 PlotData <- base_data %>%
-  filter(AccountingFramework == 1) %>%
+  filter(WeightResponsibility == 1) %>%
   left_join(
     base_data %>%
-      filter(AccountingFramework == 0) %>%
+      filter(WeightResponsibility == 0) %>%
       select(Country, AllocationPrinciple, HistoricResponsibility, TempTarget,
              TerritorialNetZero  = ImplicitNetZero,
              TerritorialBudget   = NationalCarbonBudget),
@@ -129,8 +107,7 @@ PlotData <- base_data %>%
     ConsumptionBasedBudget  = NationalCarbonBudget
   ) %>%
   mutate(
-    DifferenceNetZeros = ConsumptionBasedNetZero - TerritorialNetZero,
-    CombHistOther = factor(as.character(CombHistOther), levels = comb_hist_levels)
+    DifferenceNetZeros = ConsumptionBasedNetZero - TerritorialNetZero
   )
 
 DataForSupplementary[["scatter_All"]] <- PlotData %>%
@@ -180,7 +157,7 @@ Figure5 <- ggplot(PlotData) +
   geom_text(
     data = PlotData %>%
       filter(ConsumptionBasedNetZero > 2100 | TerritorialNetZero > 2100) %>%
-      count(EconDevelopment, CombHistOther, TempTarget) %>%
+      count(EconDevelopment, AllocationPrinciple, TempTarget) %>%
       filter(n > 0),
     aes(label = n, x = case_when(EconDevelopment == "High"         ~ 2092,
                     EconDevelopment == "Upper-middle" ~ 2092,
@@ -195,7 +172,7 @@ Figure5 <- ggplot(PlotData) +
   geom_text(
     data = PlotData %>%
       filter((ConsumptionBasedBudget < 0 & TerritorialBudget < 0) | (ConsumptionBasedBudget < 0 & TerritorialBudget > 0) | (ConsumptionBasedBudget > 0 & TerritorialBudget < 0)) %>%
-      count(EconDevelopment, CombHistOther, TempTarget) %>%
+      count(EconDevelopment, AllocationPrinciple, TempTarget) %>%
       filter(n > 0),
     aes(label = n, x = case_when(EconDevelopment == "High"         ~ 2032,
                     EconDevelopment == "Upper-middle" ~ 2032,
@@ -222,13 +199,13 @@ Figure5 <- ggplot(PlotData) +
     aes(x = 2018, y = 1998, label = Label),
     size = 2.5, color = "black"
   ) +
-  facet_grid(TempTarget ~ CombHistOther, labeller = temp_labeller_scatter) +
+  facet_grid(TempTarget ~ AllocationPrinciple, labeller = temp_labeller_scatter) +
   scale_color_manual(values = scico(4, palette = "roma")) +
   scale_y_continuous(breaks = seq(2020, 2100, 20)) +
   coord_cartesian(xlim = c(2018, 2100), ylim = c(1998, 2100)) +
   labs(
-    y     = "Producing countries bear responsibility",
-    x     = "Consuming countries bear responsibility",
+    y     = label_wrap_gen(width = 50)(LabelWeightResponsibility[["0"]]),
+    x     = label_wrap_gen(width = 50)(LabelWeightResponsibility[["1"]]),
     color = "Economic development"
   ) +
   theme_bw(base_size = 9) +
@@ -260,12 +237,10 @@ for (t in c(1.5, 2)) {
   budget_data <- NationalCarbonBudgets %>%
     filter(
       TempTarget == t,
-      AccountingFramework %in% c(0, 1),
-      Country != "Rest of world",
-      !AllocationPrinciple %in% c("Grandfathering", "Contraction and Convergence"),
-      HistoricResponsibility %in% c(0, 1990)
+      WeightResponsibility %in% c(0, 1),
+      Country != "Rest of world"
     ) %>%
-    add_comb_label()
+    mutate(AllocationPrinciple = factor(AllocationPrinciple, levels = principle_levels))
 
   for (eu_panel in c(FALSE, TRUE)) {
     panel_countries <- if (eu_panel) {
@@ -314,14 +289,14 @@ for (t in c(1.5, 2)) {
                  color = "gray90", linewidth = 0.3) +
       geom_col(
         aes(y = y_grouped, x = NationalCarbonBudget / 1e3,
-            fill = as.character(AccountingFramework)),
+            fill = as.character(WeightResponsibility)),
         position = position_dodge2()
       ) +
       facet_grid2(
-        LargeBudgets ~ CombHistOther,
+        LargeBudgets ~ AllocationPrinciple,
         scales = "free", space = "free_y", axes = "x", independent = "x"
       ) +
-      scale_fill_scico_d(labels = LabelAccountingFramework, palette = "roma") +
+      scale_fill_scico_d(labels = LabelWeightResponsibility, palette = "roma") +
       scale_y_discrete(
         limits = rev,
         guide  = legendry::guide_axis_nested(
@@ -333,12 +308,12 @@ for (t in c(1.5, 2)) {
         )
       ) +
       labs(
-        x    = expression(paste("National Carbon Budget (GtCO"[2], ")")),
+        x    = expression(paste("National carbon budget (GtCO"[2], ")")),
         fill = "", y = NULL
       ) +
       theme_bw(base_size = 7.4) +
       theme(
-        legend.position      = "right",
+        legend.position      = "bottom",
         strip.background.x   = element_rect(fill = "black", color = "transparent"),
         strip.text.x         = element_text(color = "white"),
         strip.background.y   = element_blank(),
@@ -368,11 +343,9 @@ for (t in c(1.5, 2)) {
     plot_data_nz <- NationalCarbonBudgets %>%
       filter(
         TempTarget == t,
-        HistoricResponsibility %in% c(0, 1990),
-        !AllocationPrinciple %in% c("Grandfathering", "Contraction and Convergence"),
         Country %in% panel_countries
       ) %>%
-      add_comb_label()
+      mutate(AllocationPrinciple = factor(AllocationPrinciple, levels = principle_levels))
 
     # Build y_grouped factor: "Country§EconDevelopment" for regular countries,
     # plain country name for "Rest of world" (no economic development bracket).
@@ -398,29 +371,29 @@ for (t in c(1.5, 2)) {
       geom_hline(yintercept = seq(0.5, n_nz - 0.5, 1), color = "gray90", linewidth = 0.3) +
       geom_point(
         aes(x = ImplicitNetZero, y = y_grouped,
-            color = AccountingFramework, fill = AccountingFramework),
+            color = WeightResponsibility, fill = WeightResponsibility),
         shape = 25
       ) +
       geom_text(
         size = 2.5, color = "palegreen4",
         aes(x = 2060, y = y_grouped,
-            label = if_else(AnyNetZeroAbove2100 & AccountingFramework == 0.5,
+            label = if_else(AnyNetZeroAbove2100 & WeightResponsibility == 0.5,
                             "Net-zero after 2100", ""))
       ) +
       geom_text(
         size = 2.5, color = "maroon3",
         aes(x = 2060, y = y_grouped,
-            label = if_else(CompleteResultsAccounting == FALSE & AccountingFramework == 0.5,
+            label = if_else(CompleteResultsAccounting == FALSE & WeightResponsibility == 0.5,
                             "Negative carbon budget", ""))
       ) +
-      facet_grid(~ CombHistOther) +
+      facet_grid(~ AllocationPrinciple) +
       scale_color_scico(
         palette = "roma", breaks = c(1, 0.5, 0),
-        labels  = c("Consuming\ncountries'\nresponsibility", "Symmetrical", "Producing\ncountries'\nresponsibility")
+        labels  = label_wrap_gen(width = 20)(c(LabelWeightResponsibility[["1"]], LabelWeightResponsibility[["0.5"]], LabelWeightResponsibility[["0"]]))
       ) +
       scale_fill_scico(
         palette = "roma", breaks = c(1, 0.5, 0),
-        labels  = c("Consuming\ncountries'\nresponsibility", "Symmetrical", "Producing\ncountries'\nresponsibility")
+        labels  = label_wrap_gen(width = 20)(c(LabelWeightResponsibility[["1"]], LabelWeightResponsibility[["0.5"]], LabelWeightResponsibility[["0"]]))
       ) +
       scale_y_discrete(
         limits = rev,
@@ -495,18 +468,15 @@ for (country_set in c("All", "EU")) {
   base_scatter <- NationalCarbonBudgets %>%
     filter(
       Country %in% panel_iso,
-      TempTarget %in% c(1.5, 2),
-      HistoricResponsibility %in% c(0, 1990),
-      !AllocationPrinciple %in% c("Grandfathering", "Contraction and Convergence"),
-      !(AllocationPrinciple == "Equal Cumulative per Capita" & HistoricResponsibility == 0)
+      TempTarget %in% c(1.5, 2)
     ) %>%
-    add_comb_label()
+    mutate(AllocationPrinciple = factor(AllocationPrinciple, levels = principle_levels))
 
   PlotDataBalance <- base_scatter %>%
-    filter(AccountingFramework == 1) %>%
+    filter(WeightResponsibility == 1) %>%
     left_join(
       base_scatter %>%
-        filter(AccountingFramework == 0) %>%
+        filter(WeightResponsibility == 0) %>%
         select(Country, AllocationPrinciple, HistoricResponsibility, TempTarget,
                TerritorialNetZero = ImplicitNetZero,
                TerritorialBudget  = NationalCarbonBudget),
@@ -515,19 +485,18 @@ for (country_set in c("All", "EU")) {
     rename(ConsumptionBasedNetZero = ImplicitNetZero,
            ConsumptionBasedBudget  = NationalCarbonBudget) %>%
     mutate(
-      DifferenceNetZeros = ConsumptionBasedNetZero - TerritorialNetZero,
-      CombHistOther      = factor(as.character(CombHistOther), levels = comb_hist_levels)
+      DifferenceNetZeros = ConsumptionBasedNetZero - TerritorialNetZero
     ) %>%
     left_join(CountryAssumptions %>% select(Country, iso3c), by = "Country") %>%
     left_join(EmissionsBalance, by = "iso3c") %>%
     mutate(ColorVar = if_else(
-      CombHistOther == "Historic Responsibility from 1990",
+      AllocationPrinciple == "Historic Responsibility from 1990",
       CumEmDiff_Pct,
       EmDiff_Pct
     ))
 
-  clim     <- ceiling(max(abs(PlotDataBalance$ColorVar), na.rm = TRUE) / 10) * 10
-  out_name <- if (is_eu) "ExtendedDataFigure2" else "Figure4"
+  clim_upper <- ceiling(max(PlotDataBalance$ColorVar, na.rm = TRUE) / 10) * 10
+  out_name   <- if (is_eu) "ExtendedDataFigure2" else "Figure4"
 
   p <- ggplot(PlotDataBalance) +
     geom_abline(intercept = 0, slope = 1, color = "gray") +
@@ -550,19 +519,25 @@ for (country_set in c("All", "EU")) {
       aes(x = 2018, y = 2018, label = Label),
       size = 2.5, color = "black"
     ) +
-    facet_grid(TempTarget ~ CombHistOther, labeller = temp_labeller_scatter) +
-    scale_color_scico(
-      palette = "vik",
-      limits  = c(-clim, clim),
-      name    = "Embodied emissions balance (%)",
-      guide   = guide_colorbar(barwidth = 8, barheight = 0.5, title.position = "top",
-                               title.hjust = 0.5)
+    facet_grid(TempTarget ~ AllocationPrinciple, labeller = temp_labeller_scatter) +
+    scale_color_gradientn(
+      colours  = scico(256, palette = "vik"),
+      limits   = c(-100, clim_upper),
+      breaks   = c(-100, seq(0, clim_upper, by = 100)),
+      rescaler = function(x, to = c(0, 1), from = range(x, na.rm = TRUE)) {
+        ifelse(x < 0,
+               scales::rescale(x, to = c(0, 0.5), from = c(from[1], 0)),
+               scales::rescale(x, to = c(0.5, 1), from = c(0, from[2])))
+      },
+      name     = "Embodied emissions balance (%)",
+      guide    = guide_colorbar(barwidth = 8, barheight = 0.5, title.position = "top",
+                                title.hjust = 0.5)
     ) +
     scale_y_continuous(breaks = seq(2020, 2100, 20)) +
     coord_cartesian(xlim = c(2018, 2100), ylim = c(2018, 2100)) +
     labs(
-      y = "Producing countries bear responsibility",
-      x = "Consuming countries bear responsibility"
+      y = label_wrap_gen(width = 50)(LabelWeightResponsibility[["0"]]),
+      x = label_wrap_gen(width = 50)(LabelWeightResponsibility[["1"]])
     ) +
     theme_bw(base_size = 9) +
     theme(

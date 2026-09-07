@@ -7,16 +7,11 @@
 #   C. UN Population Division   – historical population (API, cached to data/un_population.csv)
 #   D. SSP Scenario Database    – future GDP and population projections
 #      (data/ssp_data.csv, produced by python/fetch_ssp_data.py)
-#
-# The set of analysed countries is derived in 03_prepare_data.R from the
-# subset of countries that have consumption-based emissions in the GCP data.
-# Development classifications come from the World Bank income level API.
 # =============================================================================
 
 # ---------------------------------------------------------------------------
 # A. Global Carbon Project (GCP) – national emission data
 # ---------------------------------------------------------------------------
-# Source: Friedlingstein et al. 2024 (National Fossil Carbon Emissions 2024 v1.0)
 # Units in the file: MtC yr⁻¹  →  converted to MtCO₂ yr⁻¹ (factor 44/12)
 
 # Helper: read one emissions sheet and pivot to long format
@@ -37,7 +32,7 @@ read_gcb_national <- function(file, sheet, skip_rows) {
     )
 }
 
-gcb_file <- "data/National_Fossil_Carbon_Emissions_2025_v0.3.xlsx"
+gcb_file <- GCB_NATIONAL_FILE
 
 DataGlobalCarbonBudget <- bind_rows(
   read_gcb_national(gcb_file, "Territorial Emissions",  skip_rows = 11) %>%
@@ -50,17 +45,15 @@ DataGlobalCarbonBudget <- bind_rows(
 # ---------------------------------------------------------------------------
 # B2. GCP – global totals (fossil + land-use change)
 # ---------------------------------------------------------------------------
-# Source: Global Carbon Budget 2024 v1.0, sheet "Global Carbon Budget"
 # Units: GtC yr⁻¹  →  converted to MtCO₂ yr⁻¹ (× 1000 × 44/12)
 #
 # Expected columns (row 22 of the sheet is the header):
 #   Col 1: year
 #   Col 2: fossil emissions excluding carbonation (GtC)
 #   Col 4: land-use change emissions (GtC)
-# Adjust column indices below if the GCB file structure changes.
 
 DataGlobalCarbonBudgetGlobal <- read_excel(
-  "data/Global_Carbon_Budget_2025_v0.6.xlsx",
+  GCB_GLOBAL_FILE,
   sheet = "Global Carbon Budget",
   skip  = 21
 ) %>%
@@ -96,8 +89,7 @@ if (file.exists(WB_CLASSIF_CACHE)) {
   message(sprintf("World Bank classifications cached to %s", WB_CLASSIF_CACHE))
 }
 
-# Normalise column name (old cache files use lowercase "country"), add
-# manually managed entities not present in the World Bank country list, 
+# Normalise column name, add manually managed entities not present in the World Bank country list, 
 # input income level for Ethiopia (low income) and Venezuela (upper middle 
 # income) that are currently not classified by the World Bank, and adjust
 # spelling of country names.
@@ -120,7 +112,7 @@ DataWorldBankClassif <- DataWorldBankClassif %>%
   ))
 
 # ---------------------------------------------------------------------------
-# D. UN Population Division – total population, medium variant (1990–2070)
+# D. UN Population Division – total population, medium variant
 # ---------------------------------------------------------------------------
 # Data source: UN Population Division Data Portal API (indicator 49: total population by sex)
 # Historical data only (up to YearEnd); future population projections come from
@@ -176,8 +168,7 @@ fetch_un_population <- function(start_year = YearStart, end_year = YearEnd,
   }
 
   # Step 1: fetch location IDs for modelled countries + World (location 900).
-  # World is included here so DataUNPopulation is self-contained — no external
-  # CSV needed for World historical population.
+  # World is included here so DataUNPopulation is self-contained.
   needed_iso3c <- DataWorldBankClassif %>%
     dplyr::filter(!iso3c %in% c("WLD", "EUU", "ROW")) %>%
     dplyr::pull(iso3c) %>%
@@ -265,21 +256,25 @@ message("Reading SSP data from data/ssp_data.csv ...")
 DataSSPRaw <- read_csv("data/ssp_data.csv", show_col_types = FALSE) %>%
   rename_with(str_to_title)   # model → Model, region → Region, etc.
 
-# Auto-select a model for each variable if not specified in 01_parameters.R
-if (is.null(SSPModelGDP)) {
-  SSPModelGDP <- DataSSPRaw %>%
-    filter(Variable == "GDP|PPP") %>%
-    pull(Model) %>% unique() %>% first()
-  message(sprintf("  GDP model auto-selected: %s", SSPModelGDP))
-  message("  Set SSPModelGDP in R/01_parameters.R for reproducibility.")
+# Validate SSP model selections against available models in the data
+.check_ssp_model <- function(model_param, param_name, variable) {
+  available <- DataSSPRaw %>% filter(Variable == variable) %>% pull(Model) %>% unique() %>% sort()
+  if (is.null(model_param)) {
+    stop(sprintf(
+      "%s is not set in R/01_parameters.R. Available models for \"%s\":\n  %s",
+      param_name, variable, paste(available, collapse = "\n  ")
+    ))
+  }
+  if (!model_param %in% available) {
+    stop(sprintf(
+      "%s = \"%s\" not found in data. Available models for \"%s\":\n  %s",
+      param_name, model_param, variable, paste(available, collapse = "\n  ")
+    ))
+  }
 }
-if (is.null(SSPModelPopulation)) {
-  SSPModelPopulation <- DataSSPRaw %>%
-    filter(Variable == "Population") %>%
-    pull(Model) %>% unique() %>% first()
-  message(sprintf("  Population model auto-selected: %s", SSPModelPopulation))
-  message("  Set SSPModelPopulation in R/01_parameters.R for reproducibility.")
-}
+.check_ssp_model(SSPModelGDP,        "SSPModelGDP",        "GDP|PPP")
+.check_ssp_model(SSPModelPopulation, "SSPModelPopulation", "Population")
+rm(.check_ssp_model)
 
 DataSSPFutureGDP <- DataSSPRaw %>%
   filter(

@@ -75,7 +75,7 @@ if (nrow(unmatched) > 0)
     paste(unmatched$Country, collapse = ", ")
   ))
 
-# Analysed country set: iso3c codes with actual consumption emissions AND a
+# Analyzed country set: iso3c codes with actual consumption emissions AND a
 # recognised World Bank income classification. The income-level filter excludes
 # GCB regional aggregates (e.g. "North America") whose iso3c codes exist in the
 # World Bank API but carry no income level.
@@ -158,17 +158,17 @@ DataGlobalCarbonBudget <- bind_rows(
 )
 
 # -----------------------------------------------------------------------------
-# 4. Adjust carbon budgets for 2020–2021 actual emissions
+# 4. Adjust carbon budgets for observed emissions before YearBudget
 # -----------------------------------------------------------------------------
-# Subtract observed global emissions in 2020 and 2021 from the AR6 budget
-# (the AR6 budgets are stated from 1 Jan 2020; we start from 1 Jan 2022).
-emissions_2020_2021 <- DataGlobalCarbonBudget %>%
-  filter(Country == "World", Accounting == "World", Year %in% 2020:2021) %>%
+# Subtract observed global emissions from 2020 to YearBudget-1 from the AR6 budget
+# (the AR6 budgets are stated from 1 Jan 2020; our budget period starts 1 Jan YearBudget).
+emissions_pre_budget <- DataGlobalCarbonBudget %>%
+  filter(Country == "World", Accounting == "World", Year %in% 2020:(YearBudget - 1)) %>%
   pull(EmissionsMtCO2) %>%
   sum()
 
 CarbonBudget <- CarbonBudget %>%
-  mutate(BudgetGtCO2 = BudgetGtCO2 - emissions_2020_2021 / 1000)
+  mutate(BudgetGtCO2 = BudgetGtCO2 - emissions_pre_budget / 1000)
 
 # -----------------------------------------------------------------------------
 # 5. Restrict to analysed countries and historical period
@@ -334,13 +334,14 @@ DataSSPFutureGDP <- bind_rows(
 # -----------------------------------------------------------------------------
 # DataUNPopulation (historical, YearStart:YearEnd) is kept unchanged.
 # DataPopulation extends it through YearHorizon using SSP projections for the
-# chosen scenario, anchored per-entity at YearEnd so that:
-#   (a) units are aligned (SSP reports millions; UN reports persons), and
-#   (b) the future trajectory is continuous with the last observed UN value.
+# chosen scenario. Units are aligned by converting SSP millions to persons (×1e6).
+# The gap between YearEnd and the first native SSP data point (ssp_anchor_year,
+# typically 2025) is bridged with linear interpolation so that the SSP
+# projections themselves are used unmodified from ssp_anchor_year onward.
 #
 # Structure of DataPopulation:
 #   - Individual countries + EU + World: historical from DataUNPopulation,
-#     future from SSP × per-entity scale factor
+#     future interpolated gap + SSP from anchor year (both in persons)
 #   - Rest of world: residual (World − sum of non-EU individual countries)
 
 ssp_pop_scenario <- DataSSPFutureGDP %>%
@@ -357,22 +358,43 @@ if (nrow(missing_pop) > 0) {
   ))
 }
 
-# Per-entity anchoring factor: UN_value_at_YearEnd / SSP_value_at_YearEnd
-entity_scale <- DataUNPopulation %>%
-  filter(Year == YearEnd) %>%
-  inner_join(
-    ssp_pop_scenario %>%
-      filter(Year == YearEnd) %>%
-      select(Region, ssp_val = Value),
-    by = c("iso3c" = "Region")
-  ) %>%
-  transmute(iso3c, Country, iso2c, scale = Population / ssp_val)
+# First native SSP population year after YearEnd (e.g. 2025 for 5-year datasets)
+ssp_anchor_year <- DataSSPRaw %>%
+  filter(Variable == "Population", Scenario == SSPScenario, Year > YearEnd) %>%
+  pull(Year) %>% as.integer() %>% min()
 
-# Future rows (YearBudget:YearHorizon) from SSP, scaled to UN units
-pop_future_raw <- ssp_pop_scenario %>%
-  filter(Year >= YearBudget, Year <= YearHorizon) %>%
-  inner_join(entity_scale, by = c("Region" = "iso3c")) %>%
-  transmute(Country, iso3c = Region, iso2c, Year, Population = Value * scale)
+# UN population at YearEnd, per entity (persons)
+pop_un_end <- DataUNPopulation %>%
+  filter(Year == YearEnd) %>%
+  select(iso3c, Country, iso2c, pop_un = Population)
+
+# SSP population at anchor year, converted from millions to persons
+pop_ssp_anchor <- ssp_pop_scenario %>%
+  filter(Year == ssp_anchor_year) %>%
+  select(Region, pop_ssp = Value) %>%
+  mutate(pop_ssp = pop_ssp * 1e6)
+
+# Gap years (YearBudget to ssp_anchor_year - 1): linear interpolation between
+# last observed UN value and the first native SSP data point
+gap_yrs <- if (ssp_anchor_year > YearBudget) YearBudget:(ssp_anchor_year - 1L) else integer(0)
+
+pop_future_gap <- pop_un_end %>%
+  inner_join(pop_ssp_anchor, by = c("iso3c" = "Region")) %>%
+  cross_join(tibble(Year = gap_yrs)) %>%
+  mutate(
+    t          = (Year - YearEnd) / (ssp_anchor_year - YearEnd),
+    Population = pop_un + t * (pop_ssp - pop_un)
+  ) %>%
+  select(Country, iso3c, iso2c, Year, Population)
+
+# SSP from anchor year onward, used unmodified (millions → persons)
+pop_future_ssp <- ssp_pop_scenario %>%
+  filter(Year >= ssp_anchor_year, Year <= YearHorizon) %>%
+  inner_join(pop_un_end %>% select(iso3c, Country, iso2c),
+             by = c("Region" = "iso3c")) %>%
+  transmute(Country, iso3c = Region, iso2c, Year, Population = Value * 1e6)
+
+pop_future_raw <- bind_rows(pop_future_gap, pop_future_ssp)
 
 # EU future: aggregate from member-state future rows
 pop_future_eu <- pop_future_raw %>%

@@ -1,9 +1,9 @@
 # =============================================================================
-# 10_sankey_transitions.R  –  Parallel-sets diagram of budget-category transitions
+# 08_plot_sankey_transitions.R  –  Parallel-sets diagram of budget-category transitions
 # =============================================================================
 # Shows how countries move between three carbon budget categories when
-# accounting responsibility shifts from producing (AF=0) to consuming (AF=1)
-# countries. Uses ggforce::geom_parallel_sets (ggalluvial is incompatible with
+# the weight shifts from territorial (α=0) to consumption-based (α=1)
+# emissions. Uses ggforce::geom_parallel_sets (ggalluvial is incompatible with
 # ggplot2 3.5.2). Faceted by allocation principle (3 cols) × temperature
 # target (2 rows); flows coloured by economic development group.
 #
@@ -57,25 +57,14 @@ DataSankeyWide <- NationalCarbonBudgets %>%
   filter(
     Country %in% AllCountriesSankey,
     TempTarget %in% c(1.5, 2),
-    HistoricResponsibility %in% c(0, 1990),
-    !AllocationPrinciple %in% c("Grandfathering", "Contraction and Convergence"),
-    !(AllocationPrinciple == "Equal Cumulative per Capita" & HistoricResponsibility == 0),
-    AccountingFramework %in% c(0, 1)
+    WeightResponsibility %in% c(0, 1)
   ) %>%
-  mutate(
-    CombHistOther = factor(case_when(
-      HistoricResponsibility == 0 & AllocationPrinciple == "Annual Equal per Capita"
-                                       ~ "Annual Equality",
-      HistoricResponsibility == 0      ~ as.character(AllocationPrinciple),
-      TRUE                             ~ paste0("Historic Responsibility from ",
-                                                HistoricResponsibility)
-    ), levels = SankeyPrincipleLevels)
-  ) %>%
+  mutate(AllocationPrinciple = factor(AllocationPrinciple, levels = SankeyPrincipleLevels)) %>%
   left_join(CountryAssumptions %>% select(Country, iso3c), by = "Country") %>%
-  select(Country, iso3c, EconDevelopment, TempTarget, CombHistOther,
-         AccountingFramework, NationalCarbonBudget, ImplicitNetZero) %>%
+  select(Country, iso3c, EconDevelopment, TempTarget, AllocationPrinciple,
+         WeightResponsibility, NationalCarbonBudget, ImplicitNetZero) %>%
   pivot_wider(
-    names_from  = AccountingFramework,
+    names_from  = WeightResponsibility,
     values_from = c(NationalCarbonBudget, ImplicitNetZero),
     names_sep   = "_AF"
   ) %>%
@@ -92,29 +81,29 @@ message("\n========== SANKEY DATA INSPECTION ==========\n")
 message("--- Countries per facet ---")
 print(
   DataSankeyWide %>%
-    count(TempTarget, CombHistOther, name = "N") %>%
-    pivot_wider(names_from = CombHistOther, values_from = N)
+    count(TempTarget, AllocationPrinciple, name = "N") %>%
+    pivot_wider(names_from = AllocationPrinciple, values_from = N)
 )
 
 for (tt in c(1.5, 2)) {
   message(sprintf("\n--- %.1f°C: category counts AF=0 (territorial) ---", tt))
   print(
     DataSankeyWide %>% filter(TempTarget == tt) %>%
-      count(CombHistOther, category_AF0) %>%
+      count(AllocationPrinciple, category_AF0) %>%
       pivot_wider(names_from = category_AF0, values_from = n, values_fill = 0L)
   )
   message(sprintf("--- %.1f°C: category counts AF=1 (consumption) ---", tt))
   print(
     DataSankeyWide %>% filter(TempTarget == tt) %>%
-      count(CombHistOther, category_AF1) %>%
+      count(AllocationPrinciple, category_AF1) %>%
       pivot_wider(names_from = category_AF1, values_from = n, values_fill = 0L)
   )
   message(sprintf("--- %.1f°C: transition matrix ---", tt))
   print(
     DataSankeyWide %>% filter(TempTarget == tt) %>%
-      count(CombHistOther, category_AF0, category_AF1) %>%
+      count(AllocationPrinciple, category_AF0, category_AF1) %>%
       filter(n > 0) %>%
-      arrange(CombHistOther, category_AF0, category_AF1)
+      arrange(AllocationPrinciple, category_AF0, category_AF1)
   )
 }
 
@@ -133,7 +122,7 @@ if (nrow(Ambiguous) > 0) {
     nrow(Ambiguous)
   ))
   print(Ambiguous %>%
-    select(iso3c, TempTarget, CombHistOther, EconDevelopment,
+    select(iso3c, TempTarget, AllocationPrinciple, EconDevelopment,
            NationalCarbonBudget_AF0, NationalCarbonBudget_AF1,
            ImplicitNetZero_AF0, ImplicitNetZero_AF1,
            category_AF0, category_AF1))
@@ -145,8 +134,8 @@ if (nrow(Ambiguous) > 0) {
 # geom_parallel_sets needs: x (axis), id (flow), split (stratum), value (weight)
 
 AxisLabels <- c(
-  category_AF0 = "Producing\ncountries bear\nresponsibility",
-  category_AF1 = "Consuming\ncountries bear\nresponsibility"
+  category_AF0 = label_wrap_gen(width = 10)(LabelWeightResponsibility[["0"]]),
+  category_AF1 = label_wrap_gen(width = 10)(LabelWeightResponsibility[["1"]])
 )
 
 DataPS <- DataSankeyWide %>%
@@ -165,10 +154,7 @@ DataPS <- DataSankeyWide %>%
 
 # ─── Figure ───────────────────────────────────────────────────────────────────
 
-temp_labeller_sankey <- labeller(
-  TempTarget = c("1.5" = "1.5°C with 50% probability",
-                 "2"   = "2°C with 67% probability")
-)
+temp_labeller_sankey <- labeller(TempTarget = LabelTempTarget)
 
 # Category colours for axis bars (neutral but distinct)
 CategoryPalette <- c(
@@ -197,7 +183,7 @@ Figure6 <- ggplot(DataPS,
     lineheight = 0.85,
     sep        = 0.02
   ) +
-  facet_grid(TempTarget ~ CombHistOther, labeller = temp_labeller_sankey) +
+  facet_grid(TempTarget ~ AllocationPrinciple, labeller = temp_labeller_sankey) +
   scale_fill_manual(
     values   = c(EconPalette, CategoryPalette),
     breaks   = EconLevels,

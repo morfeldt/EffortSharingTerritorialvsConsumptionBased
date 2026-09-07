@@ -4,7 +4,7 @@
 # Produces:
 #   output/Graphs/Figure1.png  – Fig. 1: national carbon budgets across
 #                                         the full accounting spectrum
-#   output/Graphs/Figure2.png  – Fig. 2: implied net-zero years
+#   output/Graphs/Figure2.png  – Fig. 2: implied net-zero emission years
 #   output/Graphs/Figure3.png  – Fig. 3: per-capita emission trends
 #
 # Figures 1 and 2 show both temperature targets (1.5 °C and 2 °C) as two
@@ -19,43 +19,32 @@ SampleCountries <- c("China", "European Union", "South Africa", "Sweden", "Unite
 scico_roma_bar <- scale_color_scico(
   palette = "roma",
   breaks  = c(1, 0.5, 0),
-  labels  = c("Consuming countries' responsibility",
-               "Symmetrical",
-               "Producing countries' responsibility")
+  labels  = label_wrap_gen(width = 30)(c(LabelWeightResponsibility[["1"]], LabelWeightResponsibility[["0.5"]], LabelWeightResponsibility[["0"]]))
 )
 scico_roma_fill <- scale_fill_scico(
   palette = "roma",
   breaks  = c(1, 0.5, 0),
-  labels  = c("Consuming countries' responsibility",
-               "Symmetrical",
-               "Producing countries' responsibility")
+  labels  = label_wrap_gen(width = 30)(c(LabelWeightResponsibility[["1"]], LabelWeightResponsibility[["0.5"]], LabelWeightResponsibility[["0"]]))
 )
 
 # -----------------------------------------------------------------------------
 # Shared data and theme for Fig. 1 and Fig. 2
 # -----------------------------------------------------------------------------
-# Annual Equal per Capita and Capability (no historic responsibility) plus
-# Equal Cumulative per Capita from 1990 only; both temperature targets.
+# All three allocation principles; both temperature targets.
 
 prepare_sample_data <- function(df) {
   df %>%
     filter(
       Country %in% SampleCountries,
       TempTarget %in% c(1.5, 2),
-      HistoricResponsibility %in% c(0, 1990),
-      AllocationPrinciple %in% c("Equal Cumulative per Capita",
-                                 "Annual Equal per Capita",
+      AllocationPrinciple %in% c("Historic Responsibility from 1990",
+                                 "Annual Equality",
                                  "Capability")
     ) %>%
     mutate(
-      CombHistOther = factor(case_when(
-        HistoricResponsibility == 0 & AllocationPrinciple == "Annual Equal per Capita"
-                                         ~ "Annual Equality",
-        HistoricResponsibility == 0      ~ as.character(AllocationPrinciple),
-        TRUE                             ~ paste0("Historic Responsibility from ",
-                                                  HistoricResponsibility)
-      ), levels = c("Equal Cumulative per Capita", "Capability",
-                    "Annual Equality", "Historic Responsibility from 1990"))
+      AllocationPrinciple = factor(AllocationPrinciple,
+                                   levels = c("Capability", "Annual Equality",
+                                              "Historic Responsibility from 1990"))
     )
 }
 
@@ -67,8 +56,7 @@ panel_labels <- expand_grid(
   mutate(Label = paste0(letters[row_number()], ")"))
 
 # Row strip labels for temperature targets
-temp_labeller <- labeller(TempTarget = c("1.5" = "1.5°C with 50% probability",
-                                        "2"   = "2°C with 67% probability"))
+temp_labeller <- labeller(TempTarget = LabelTempTarget)
 
 # Shared theme for Fig. 1 and Fig. 2
 theme_sample <- theme_bw(base_size = 9) +
@@ -90,8 +78,8 @@ DataBudgetSample <- prepare_sample_data(NationalCarbonBudgets) %>%
 
 Figure1 <- ggplot(DataBudgetSample) +
   geom_col(
-    aes(x = NationalCarbonBudget / 1e3, y = CombHistOther,
-        color = AccountingFramework, fill = AccountingFramework),
+    aes(x = NationalCarbonBudget / 1e3, y = AllocationPrinciple,
+        color = WeightResponsibility, fill = WeightResponsibility),
     position = "dodge2"
   ) +
   geom_vline(xintercept = 0, color = "gray70", linewidth = 0.25) +
@@ -106,6 +94,7 @@ Figure1 <- ggplot(DataBudgetSample) +
   scico_roma_bar +
   scico_roma_fill +
   scale_y_discrete(labels = label_wrap_gen(width = 24)) +
+  scale_x_continuous(expand = expansion(mult = c(0.13, 0.07))) +
   guides(color = guide_colorbar(barwidth = 20)) +
   labs(
     x = expression(paste("National Carbon Budget (GtCO"[2], ")")),
@@ -129,19 +118,19 @@ DataSampleCountries <- prepare_sample_data(NationalCarbonBudgets)
 
 Figure2 <- ggplot(DataSampleCountries) +
   geom_point(
-    aes(x = ImplicitNetZero, y = CombHistOther,
-        color = AccountingFramework, fill = AccountingFramework),
+    aes(x = ImplicitNetZero, y = AllocationPrinciple,
+        color = WeightResponsibility, fill = WeightResponsibility),
     size = 2, shape = 25
   ) +
   geom_text(
-    aes(x = 2040, y = CombHistOther,
-        label = if_else(AnyNetZeroAbove2100 & AccountingFramework == 0.5,
+    aes(x = 2040, y = AllocationPrinciple,
+        label = if_else(AnyNetZeroAbove2100 & WeightResponsibility == 0.5,
                         "Net-zero after 2060", "")),
     size = 2.5, color = "dimgray"
   ) +
   geom_text(
-    aes(x = 2040, y = CombHistOther,
-        label = if_else(CompleteResultsAccounting == FALSE & AccountingFramework == 0.5,
+    aes(x = 2040, y = AllocationPrinciple,
+        label = if_else(CompleteResultsAccounting == FALSE & WeightResponsibility == 0.5,
                         "Negative carbon budget", "")),
     size = 2.5, color = "dimgray"
   ) +
@@ -218,16 +207,20 @@ Figure3 <- ggplot(DataTrends) +
   ) +
   facet_grid2(cols = vars(Country), scales = "free", independent = TRUE) +
   scale_linetype_manual(
-    values = c("dashed", "dotdash", "solid"),
-    labels = c("Territorial emissions",
-               "Consumption-based emissions",
-               "World average")
+    values = c("Territorial Emissions" = "dashed",
+               "Consumption Emissions" = "dotdash",
+               "World"                = "solid"),
+    labels = c("Consumption Emissions" = "Consumption-based emissions",
+               "Territorial Emissions" = "Territorial emissions",
+               "World"                = "World average")
   ) +
   scale_color_manual(
-    values = c(scico(2, palette = "roma"), "black"),
-    labels = c("Territorial emissions",
-               "Consumption-based emissions",
-               "World average")
+    values = c("Territorial Emissions" = scico(2, palette = "roma")[1],
+               "Consumption Emissions" = scico(2, palette = "roma")[2],
+               "World"                = "black"),
+    labels = c("Consumption Emissions" = "Consumption-based emissions",
+               "Territorial Emissions" = "Territorial emissions",
+               "World"                = "World average")
   ) +
   scale_y_continuous(limits = c(0, NA), n.breaks = 6) +
   guides(linetype = guide_legend(nrow = 1), color = guide_legend(nrow = 1)) +
