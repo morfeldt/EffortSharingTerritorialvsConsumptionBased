@@ -1,9 +1,10 @@
-# Net-Zero Targets under Dual Emissions Accounting and Global Effort Sharing
+# National Carbon Budgets and Net-Zero Targets under Dual Emissions Accounting
 
 Replication code for:
 
-> **"Net-Zero Targets under Dual Emissions Accounting and Global Effort Sharing"**  
-> *[Authors, Journal, Year — to be updated upon acceptance]*
+> **"National Carbon Budgets and Net-Zero Targets under Dual Emissions Accounting"**  
+> [Morfeldt, J., Johansson D.J.A., Azar, C.]\
+> Under review. Pre-print link will be added when available.
 
 ---
 
@@ -57,18 +58,6 @@ install.packages(c(
   "doParallel", "foreach", "ggrepel", "ggforce", "ggh4x", "scico", "legendry"
 ))
 ```
-
-Minimum requirement: **dplyr ≥ 1.1.0** (released 2023-01).
-
-> **Note on ggplot2 version:** `legendry`'s nested axis guide is incompatible
-> with ggplot2 ≥ 4.0.0. The code is tested on ggplot2 3.5.2. To restore a
-> known-working set of packages:
-> ```r
-> remotes::install_version("ggplot2",   "3.5.2")
-> remotes::install_version("legendry",  "0.2.2")
-> remotes::install_version("ggh4x",     "0.2.8")
-> remotes::install_version("ggrepel",   "0.9.5")
-> ```
 
 ### 2. Fetch SSP scenario data (once)
 
@@ -160,5 +149,4 @@ responsibility) to 1 (full consumption-based responsibility), in steps of 0.05.
 ---
 
 ## License
-
-[To be specified upon publication]
+This project is licensed under the [MIT License](LICENSE).

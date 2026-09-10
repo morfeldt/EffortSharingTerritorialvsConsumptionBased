@@ -1,8 +1,8 @@
 # =============================================================================
-# Net-Zero Targets under Dual Emissions Accounting and Global Effort Sharing
+# National Carbon Budgets and Net-Zero Targets under Dual Emissions Accounting
 # =============================================================================
 # Replication code for:
-#   "Net-Zero Targets under Dual Emissions Accounting and Global Effort Sharing"
+#   "National Carbon Budgets and Net-Zero Targets under Dual Emissions Accounting"
 #
 # Entry point. Sources all modules in order.
 # Run from the project root:
