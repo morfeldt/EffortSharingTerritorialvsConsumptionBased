@@ -61,7 +61,7 @@ LABEL_AF05 <- LabelWeightResponsibility[["0.5"]]
 LABEL_AF1  <- LabelWeightResponsibility[["1"]]
 
 # Country set used in sample-country figures (defined in 06_plot_sample_countries.R)
-SamplePrinciples <- c("Historic Responsibility from 1990", "Annual Equality", "Capability")
+SamplePrinciples <- c("Historic Responsibility from 1990", "Equality", "Capability")
 
 # ── Figure 1: National carbon budgets for sample countries ────────────────────
 
@@ -424,7 +424,7 @@ for (tab_name in names(fig_tabs)) {
 
 MainAllocationPrinciples <- c(
   "Historic Responsibility from 1990",
-  "Annual Equality",
+  "Equality",
   "Capability"
 )
 
@@ -622,7 +622,7 @@ DataAll <- NationalCarbonBudgets %>%
   mutate(
     AllocationPrinciple = factor(AllocationPrinciple,
                                  levels = c("Historic Responsibility from 1990",
-                                            "Annual Equality",
+                                            "Equality",
                                             "Capability")),
     EconDevelopment = factor(EconDevelopment, levels = econ_levels)
   ) %>%
@@ -917,7 +917,7 @@ toc_tabs <- tibble(
     "National carbon budgets for EU member states at 1.5°C.",
     "National carbon budgets for EU member states at 2°C.",
     paste0("Change in national carbon budget when shifting from α = 0 (", LABEL_AF0, ") to α = 1 (", LABEL_AF1, "); Historic Responsibility from 1990 principle only."),
-    "National carbon budgets under Annual Equality and Capability principles (identical across all Responsibility Weight values).",
+    "National carbon budgets under Equality and Capability principles (identical across all Responsibility Weight values).",
     paste0("Implied net-zero year for α = 0 (", LABEL_AF0, ") and α = 1 (", LABEL_AF1, "), and the shift between them, by country, temperature target, and allocation principle."),
     paste0("Summary of net-zero year shifts (min/max range across allocation principles) when moving from α = 0 to α = 1, by country and temperature target."),
     paste0("Net-zero year change data for all non-EU countries when shifting from α = 0 (", LABEL_AF0, ") to α = 1 (", LABEL_AF1, "), categorised in 5-year bins, with embodied emissions balance."),

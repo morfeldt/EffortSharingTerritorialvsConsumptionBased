@@ -22,7 +22,7 @@ dir.create("output/Graphs", recursive = TRUE, showWarnings = FALSE)
 SankeyPrincipleLevels <- c(
   "Historic Responsibility from 1990",
   "Capability",
-  "Annual Equality"
+  "Equality"
 )
 
 # Category order: top to bottom in axes
@@ -156,6 +156,12 @@ DataPS <- DataSankeyWide %>%
 
 temp_labeller_sankey <- labeller(TempTarget = LabelTempTarget)
 
+sankey_labels <- expand_grid(
+  TempTarget          = c(1.5, 2),
+  AllocationPrinciple = factor(SankeyPrincipleLevels, levels = SankeyPrincipleLevels)
+) %>%
+  mutate(Label = paste0(letters[row_number()], ")"))
+
 # Category colours for axis bars (neutral but distinct)
 CategoryPalette <- c(
   "Net-zero\nbefore 2100" = "gray75",
@@ -182,6 +188,12 @@ Figure6 <- ggplot(DataPS,
     fontface   = "bold",
     lineheight = 0.85,
     sep        = 0.02
+  ) +
+  geom_text(
+    data         = sankey_labels,
+    aes(x = -Inf, y = -Inf, label = Label),
+    hjust        = -0.3, vjust = -0.5,
+    size         = 2.5, color = "black", inherit.aes = FALSE
   ) +
   facet_grid(TempTarget ~ AllocationPrinciple, labeller = temp_labeller_sankey) +
   scale_fill_manual(
@@ -213,12 +225,6 @@ Figure6 <- ggplot(DataPS,
     panel.spacing.y   = unit(0.4, "cm")
   )
 
-ggsave(
-  "output/Graphs/Figure6.png",
-  Figure6,
-  width  = 180,
-  height = 130,
-  units  = "mm",
-  dpi    = 500
-)
-message("Written: output/Graphs/Figure6.png")
+ggsave("output/Graphs/Figure6.png", Figure6, width = 180, height = 130, units = "mm", dpi = 500)
+ggsave("output/Graphs/Figure6.pdf", Figure6, width = 180, height = 130, units = "mm")
+message("Written: output/Graphs/Figure6.png / .pdf")

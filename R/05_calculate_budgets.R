@@ -12,7 +12,7 @@
 # Allocation principles and loop dimensions -----------------------------------
 AllocationPrinciples <- c(
   "Historic Responsibility from 1990",
-  "Annual Equality",
+  "Equality",
   "Capability"
 )
 
@@ -116,9 +116,9 @@ NationalCarbonBudgets <-
           ((1 - acct) * hist_c_terr + acct * hist_c_cons)
       },
 
-      # Annual Equality (Eq. 2)
+      # Equality (Eq. 2)
       # Each year's global budget is split proportionally to population
-      "Annual Equality" = {
+      "Equality" = {
         global_curve <- GlobalEmissionCurves %>%
           filter(TempTarget == temp, Year %in% YearBudget:YearHorizon)
         pop_c <- DataPopulation %>%

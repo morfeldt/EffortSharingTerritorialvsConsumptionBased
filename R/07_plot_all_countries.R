@@ -52,9 +52,10 @@ figure_path <- function(stem) {
   mapped <- figure_stem_map[stem]
   sprintf("output/Graphs/%s.png", if (!is.na(mapped)) mapped else stem)
 }
+pdf_path <- function(p) sub("\\.png$", ".pdf", p)
 
 # Shared theme elements -------------------------------------------------------
-theme_supp <- theme_bw(base_size = 9) +
+theme_supp <- theme_bw(base_size = 7) +
   theme(
     legend.position    = "bottom",
     strip.background   = element_rect(fill = "black", color = "transparent"),
@@ -64,7 +65,7 @@ theme_supp <- theme_bw(base_size = 9) +
 
 principle_levels <- c("Historic Responsibility from 1990",
                       "Capability",
-                      "Annual Equality")
+                      "Equality")
 
 # Panel letter labels for scatter plots: a-c for 1.5°C, d-f for 2°C
 scatter_labels <- expand_grid(
@@ -192,7 +193,8 @@ Figure5 <- ggplot(PlotData) +
     aes(y = TerritorialNetZero, x = ConsumptionBasedNetZero, label = iso3c),
     size = 2, nudge_x = 0.5, nudge_y = 0.5,
     min.segment.length = 0, max.overlaps = 30, force = 5,
-    xlim = c(2020, 2100), ylim = c(2020, 2100)
+    xlim = c(2020, 2100), ylim = c(2020, 2100),
+    show.legend = FALSE
   ) +
   geom_text(
     data = scatter_labels,
@@ -216,15 +218,23 @@ Figure5 <- ggplot(PlotData) +
     strip.text        = element_text(color = "white")
   )
 
-ggsave(
-  figure_path("ResultsCompareTargets1.5All"),
-  Figure5,
-  width = 6, height = 5, units = "in", dpi = 300
-)
+ggsave(figure_path("ResultsCompareTargets1.5All"),     Figure5, width = 180, height = 150, units = "mm", dpi = 300)
+ggsave(pdf_path(figure_path("ResultsCompareTargets1.5All")), Figure5, width = 180, height = 150, units = "mm")
 
 # -----------------------------------------------------------------------------
 # Supplementary figures – loop over temperature targets
 # -----------------------------------------------------------------------------
+
+nz_labels <- tibble(
+  AllocationPrinciple = factor(principle_levels, levels = principle_levels),
+  Label = paste0(letters[seq_along(principle_levels)], ")")
+)
+
+bar_labels <- tibble(
+  AllocationPrinciple = factor(principle_levels, levels = principle_levels),
+  LargeBudgets = TRUE,
+  Label = paste0(letters[seq_along(principle_levels)], ")")
+)
 
 for (t in c(1.5, 2)) {
 
@@ -292,6 +302,12 @@ for (t in c(1.5, 2)) {
             fill = as.character(WeightResponsibility)),
         position = position_dodge2()
       ) +
+      geom_text(
+        data = bar_labels,
+        aes(x = -Inf, y = -Inf, label = Label),
+        hjust = -0.3, vjust = -0.5,
+        size = 2.5, color = "black", inherit.aes = FALSE
+      ) +
       facet_grid2(
         LargeBudgets ~ AllocationPrinciple,
         scales = "free", space = "free_y", axes = "x", independent = "x"
@@ -311,7 +327,7 @@ for (t in c(1.5, 2)) {
         x    = expression(paste("National carbon budget (GtCO"[2], ")")),
         fill = "", y = NULL
       ) +
-      theme_bw(base_size = 7.4) +
+      theme_bw(base_size = 7) +
       theme(
         legend.position      = "bottom",
         strip.background.x   = element_rect(fill = "black", color = "transparent"),
@@ -324,11 +340,10 @@ for (t in c(1.5, 2)) {
       )
 
     suffix <- if (eu_panel) "EU" else ""
-    ggsave(
-      figure_path(sprintf("ResultsCarbonBudgets%s%s", t, suffix)),
-      PlotBudgets,
-      width = 8.38, height = if_else(eu_panel,4.9,11.4), units = "in", dpi = 300
-    )
+    .png <- figure_path(sprintf("ResultsCarbonBudgets%s%s", t, suffix))
+    .h   <- if_else(eu_panel, 90, 210)
+    ggsave(.png,            PlotBudgets, width = 180, height = .h, units = "mm", dpi = 300)
+    ggsave(pdf_path(.png),  PlotBudgets, width = 180, height = .h, units = "mm")
   }
 
   # ── Point plots: implied net-zero year, all countries ─────────────────────
@@ -337,7 +352,7 @@ for (t in c(1.5, 2)) {
     panel_countries <- if (eu_panel) {
       CountryAssumptions$Country[CountryAssumptions$EUMemberState]
     } else {
-      CountryAssumptions$Country[!CountryAssumptions$EUMemberState]
+      CountryAssumptions$Country[!CountryAssumptions$EUMemberState & CountryAssumptions$iso3c != "ROW"]
     }
 
     plot_data_nz <- NationalCarbonBudgets %>%
@@ -375,16 +390,22 @@ for (t in c(1.5, 2)) {
         shape = 25
       ) +
       geom_text(
-        size = 2.5, color = "palegreen4",
+        size = 2, color = "palegreen4",
         aes(x = 2060, y = y_grouped,
             label = if_else(AnyNetZeroAbove2100 & WeightResponsibility == 0.5,
                             "Net-zero after 2100", ""))
       ) +
       geom_text(
-        size = 2.5, color = "maroon3",
+        size = 2, color = "maroon3",
         aes(x = 2060, y = y_grouped,
             label = if_else(CompleteResultsAccounting == FALSE & WeightResponsibility == 0.5,
                             "Negative carbon budget", ""))
+      ) +
+      geom_text(
+        data = nz_labels,
+        aes(x = -Inf, y = -Inf, label = Label),
+        hjust = -0.3, vjust = -0.5,
+        size = 2.5, color = "black", inherit.aes = FALSE
       ) +
       facet_grid(~ AllocationPrinciple) +
       scale_color_scico(
@@ -417,11 +438,10 @@ for (t in c(1.5, 2)) {
       )
 
     suffix <- if (eu_panel) "EUMemberStates" else "AllCountries"
-    ggsave(
-      figure_path(sprintf("%s%s", suffix, t)),
-      PlotNetZero,
-      width = 8.38, height = if_else(eu_panel,4.9,11.4), units = "in", dpi = 300
-    )
+    .png <- figure_path(sprintf("%s%s", suffix, t))
+    .h   <- if_else(eu_panel, 90, 210)
+    ggsave(.png,            PlotNetZero, width = 180, height = .h, units = "mm", dpi = 300)
+    ggsave(pdf_path(.png),  PlotNetZero, width = 180, height = .h, units = "mm")
   }
 }
 
@@ -430,7 +450,7 @@ for (t in c(1.5, 2)) {
 # =============================================================================
 # Colour variable:
 #   "Historic Responsibility from 1990" panel → cumulative diff 1990–YearEnd (%)
-#   "Capability" / "Annual Equality" panels   → annual diff at YearEnd (%)
+#   "Capability" / "Equality" panels   → annual diff at YearEnd (%)
 # Positive = consumption > territorial (net importer of embedded carbon)
 #
 # EmissionsBalance is kept alive after this loop — reused by ExtendedDataFigure1.
@@ -512,7 +532,8 @@ for (country_set in c("All", "EU")) {
       aes(y = TerritorialNetZero, x = ConsumptionBasedNetZero, label = iso3c),
       size = 2, nudge_x = 0.5, nudge_y = 0.5,
       min.segment.length = 0, max.overlaps = 30, force = 5,
-      xlim = c(2020, 2100), ylim = c(2020, 2100)
+      xlim = c(2020, 2100), ylim = c(2020, 2100),
+      show.legend = FALSE
     ) +
     geom_text(
       data = scatter_labels,
@@ -547,12 +568,9 @@ for (country_set in c("All", "EU")) {
       strip.text       = element_text(color = "white")
     )
 
-  ggsave(
-    sprintf("output/Graphs/%s.png", out_name),
-    p,
-    width = 6, height = 4.5, units = "in", dpi = 300
-  )
-  message(sprintf("Written: output/Graphs/%s.png", out_name))
+  ggsave(sprintf("output/Graphs/%s.png", out_name), p, width = 180, height = 135, units = "mm", dpi = 300)
+  ggsave(sprintf("output/Graphs/%s.pdf", out_name), p, width = 180, height = 135, units = "mm")
+  message(sprintf("Written: output/Graphs/%s.png / .pdf", out_name))
 }
 
 # =============================================================================
@@ -604,17 +622,18 @@ ExtendedDataFigure1 <- ggplot(
     force              = 5,
     point.padding      = 0.5,
     box.padding        = 0.4,
-    seed               = 42
+    seed               = 42,
+    show.legend        = FALSE
   ) +
   scale_color_manual(
     values = econ_palette_ed1,
     labels = c("High", "Upper-middle", "Lower-middle", "Low"),
-    guide  = guide_legend(nrow = 1)
+    guide  = guide_legend(nrow = 2)
   ) +
   labs(
     x     = paste0("Embodied emissions balance at ", YearEnd, " (%)"),
     y     = paste0("Cumulative embodied emissions balance 1990–", YearEnd, " (%)"),
-    color = "Economic development"
+    color = "Economic\ndevelopment"
   ) +
   theme_bw(base_size = 9) +
   theme(
@@ -623,12 +642,6 @@ ExtendedDataFigure1 <- ggplot(
     panel.grid.minor = element_blank()
   )
 
-ggsave(
-  "output/Graphs/ExtendedDataFigure1.png",
-  ExtendedDataFigure1,
-  width  = 120,
-  height = 110,
-  units  = "mm",
-  dpi    = 500
-)
-message("Written: output/Graphs/ExtendedDataFigure1.png")
+ggsave("output/Graphs/ExtendedDataFigure1.png", ExtendedDataFigure1, width = 88, height = 105, units = "mm", dpi = 500)
+ggsave("output/Graphs/ExtendedDataFigure1.pdf", ExtendedDataFigure1, width = 88, height = 105, units = "mm")
+message("Written: output/Graphs/ExtendedDataFigure1.png / .pdf")

@@ -138,7 +138,7 @@ Three allocation principles are implemented (see Supplementary Methods):
 | Principle | Description |
 |-----------|-------------|
 | Historic Responsibility from 1990 | Equal per-capita share of the cumulative budget, accounting for emissions since 1990 |
-| Annual Equality | Equal per-capita share of the annual global emission pathway |
+| Equality | Equal per-capita share of the annual global emission pathway |
 | Capability | Inverse weighting by GDP per unit of population² |
 
 The `WeightResponsibility` parameter (*α*) ranges from 0 (full territorial

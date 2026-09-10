@@ -38,12 +38,12 @@ prepare_sample_data <- function(df) {
       Country %in% SampleCountries,
       TempTarget %in% c(1.5, 2),
       AllocationPrinciple %in% c("Historic Responsibility from 1990",
-                                 "Annual Equality",
+                                 "Equality",
                                  "Capability")
     ) %>%
     mutate(
       AllocationPrinciple = factor(AllocationPrinciple,
-                                   levels = c("Capability", "Annual Equality",
+                                   levels = c("Equality", "Capability",
                                               "Historic Responsibility from 1990"))
     )
 }
@@ -85,8 +85,8 @@ Figure1 <- ggplot(DataBudgetSample) +
   geom_vline(xintercept = 0, color = "gray70", linewidth = 0.25) +
   geom_text(
     data = panel_labels,
-    aes(x = -Inf, y = Inf, label = Label),
-    hjust = -0.3, vjust = 1.5,
+    aes(x = -Inf, y = -Inf, label = Label),
+    hjust = -0.3, vjust = -0.5,
     size = 2.5, color = "black", inherit.aes = FALSE
   ) +
   facet_grid(TempTarget ~ Country, scales = "free_x",
@@ -104,11 +104,8 @@ Figure1 <- ggplot(DataBudgetSample) +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 0.5,
                                    color = "black"))
 
-ggsave(
-  "output/Graphs/Figure1.png",
-  Figure1,
-  width = 176, height = 100, units = "mm", dpi = 500
-)
+ggsave("output/Graphs/Figure1.png", Figure1, width = 180, height = 102, units = "mm", dpi = 500)
+ggsave("output/Graphs/Figure1.pdf", Figure1, width = 180, height = 102, units = "mm")
 
 # -----------------------------------------------------------------------------
 # Fig. 2 – Implied net-zero years for sample countries
@@ -136,7 +133,8 @@ Figure2 <- ggplot(DataSampleCountries) +
   ) +
   geom_text(
     data = panel_labels,
-    aes(x = 2022, y = 0.75, label = Label),
+    aes(x = -Inf, y = -Inf, label = Label),
+    hjust = -0.3, vjust = -0.5,
     size = 2.5, color = "black"
   ) +
   facet_grid(TempTarget ~ Country, scales = "free",
@@ -151,11 +149,8 @@ Figure2 <- ggplot(DataSampleCountries) +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 0.5,
                                    color = "black"))
 
-ggsave(
-  "output/Graphs/Figure2.png",
-  Figure2,
-  width = 176, height = 100, units = "mm", dpi = 500
-)
+ggsave("output/Graphs/Figure2.png", Figure2, width = 180, height = 102, units = "mm", dpi = 500)
+ggsave("output/Graphs/Figure2.pdf", Figure2, width = 180, height = 102, units = "mm")
 
 # -----------------------------------------------------------------------------
 # Fig. 3 – Per-capita emission trends (historical)
@@ -237,8 +232,5 @@ Figure3 <- ggplot(DataTrends) +
     axis.text        = element_text(color = "black")
   )
 
-ggsave(
-  "output/Graphs/Figure3.png",
-  Figure3,
-  width = 176, height = 60, units = "mm", dpi = 500
-)
+ggsave("output/Graphs/Figure3.png", Figure3, width = 180, height = 61, units = "mm", dpi = 500)
+ggsave("output/Graphs/Figure3.pdf", Figure3, width = 180, height = 61, units = "mm")
