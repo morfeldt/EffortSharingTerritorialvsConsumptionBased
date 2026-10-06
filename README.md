@@ -4,7 +4,7 @@ Replication code for:
 
 > **"National Carbon Budgets and Net-Zero Targets under Dual Emissions Accounting"**  
 > [Morfeldt, J., Johansson D.J.A., Azar, C.]\
-> Under review. Pre-print link will be added when available.
+> Under review. [Link to pre-print](https://doi.org/10.21203/rs.3.rs-11009726/v1)
 
 ---
 
@@ -149,4 +149,4 @@ responsibility) to 1 (full consumption-based responsibility), in steps of 0.05.
 ---
 
 ## License
-This project is licensed under the [MIT License](LICENSE).
+This project is licensed under the [MIT License](code/LICENSE).
