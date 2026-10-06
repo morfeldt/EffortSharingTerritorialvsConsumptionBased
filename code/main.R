@@ -43,7 +43,7 @@ source("R/03_prepare_data.R")            # 4. Clean, reshape, aggregate Rest-of-
 source("R/04_allocation_functions.R")    # 5. Allocation-principle helper functions
 source("R/05_calculate_budgets.R")       # 6. National carbon budget calculations (parallelised)
 source("R/06_plot_sample_countries.R")   # 7. Sample-country figures
-source("R/07_plot_all_countries.R")      # 8. All-countries figures (incl. ExtendedDataFigure1)
+source("R/07_plot_all_countries.R")      # 8. All-countries figures (incl. SupplementaryFigure1)
 source("R/08_plot_sankey_transitions.R") # 9. Sankey diagram (Figure 6)
 source("R/09_export.R")                  # 10. Write SupplementaryData.xlsx (all tables + in-text data)
 

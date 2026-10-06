@@ -11,8 +11,8 @@
 #     Tab 6:  Figure 4               – scatter (net emissions embodied in trade), non-EU countries
 #     Tab 7:  Figure 5               – scatter (economic development), non-EU countries
 #     Tab 8:  Figure 6               – Sankey / budget-category transitions
-#     Tab 9:  Extended Data Figure 1 – annual vs cumulative net emissions embodied in trade
-#     Tabs 10–18: Extended Data Figures 2–10
+#     Tab 9:  Supplementary Figure 1 – annual vs cumulative net emissions embodied in trade
+#     Tabs 10–18: Supplementary Figures 2–10
 #     Tab 19: Budget Shift (HR 1990)
 #     Tab 20: Budget (Other Principles)
 #     Tab 21: Net-Zero by Principle
@@ -140,7 +140,7 @@ DataFig3 <- bind_rows(
   ) %>%
   arrange(Country, `Emissions Type`, Year)
 
-# ── Figure 4 & Extended Data Figure 2: Scatter coloured by embodied-emissions balance ──
+# ── Figure 4 & Supplementary Figure 2: Scatter coloured by embodied-emissions balance ──
 
 .ew <- DataGlobalCarbonBudget %>%
   filter(
@@ -292,7 +292,7 @@ DataFig6 <- DataSankeyWide %>%
   ) %>%
   arrange(`Temperature Target (°C)`, `Allocation Principle`, Country)
 
-# ── Extended Data Figure 1: Annual vs cumulative embodied-emissions balance ───
+# ── Supplementary Figure 1: Annual vs cumulative embodied-emissions balance ───
 
 DataExtFig1 <- DataEmDiff %>%
   select(
@@ -303,7 +303,7 @@ DataExtFig1 <- DataEmDiff %>%
   ) %>%
   arrange(`Economic Development`, `ISO Country Code`)
 
-# ── Extended Data Figures 3–6: Implied net-zero year for all countries ────────
+# ── Supplementary Figures 3–6: Implied net-zero year for all countries ────────
 
 make_netzero_data <- function(temp_target, eu_panel) {
   panel_countries <- if (eu_panel) {
@@ -332,7 +332,7 @@ make_netzero_data <- function(temp_target, eu_panel) {
     arrange(Country, `Allocation Principle`, !!AF_COL)
 }
 
-# ── Extended Data Figures 7–10: National carbon budgets for all countries ─────
+# ── Supplementary Figures 7–10: National carbon budgets for all countries ─────
 
 make_budget_data <- function(temp_target, eu_panel) {
   panel_countries <- if (eu_panel) {
@@ -401,16 +401,16 @@ fig_tabs <- list(
   "Figure 4"               = DataFig4,
   "Figure 5"               = DataFig5,
   "Figure 6"               = DataFig6,
-  "Extended Data Figure 1" = DataExtFig1,
-  "Extended Data Figure 2" = DataExtFig2,
-  "Extended Data Figure 3" = DataExtFig3,
-  "Extended Data Figure 4" = DataExtFig4,
-  "Extended Data Figure 5" = DataExtFig5,
-  "Extended Data Figure 6" = DataExtFig6,
-  "Extended Data Figure 7" = DataExtFig7,
-  "Extended Data Figure 8" = DataExtFig8,
-  "Extended Data Figure 9" = DataExtFig9,
-  "Extended Data Figure 10" = DataExtFig10
+  "Supplementary Figure 1" = DataExtFig1,
+  "Supplementary Figure 2" = DataExtFig2,
+  "Supplementary Figure 3" = DataExtFig3,
+  "Supplementary Figure 4" = DataExtFig4,
+  "Supplementary Figure 5" = DataExtFig5,
+  "Supplementary Figure 6" = DataExtFig6,
+  "Supplementary Figure 7" = DataExtFig7,
+  "Supplementary Figure 8" = DataExtFig8,
+  "Supplementary Figure 9" = DataExtFig9,
+  "Supplementary Figure 10" = DataExtFig10
 )
 
 for (tab_name in names(fig_tabs)) {
@@ -889,11 +889,11 @@ toc_tabs <- tibble(
     "Full Results",
     "Figure 1", "Figure 2", "Figure 3",
     "Figure 4", "Figure 5", "Figure 6",
-    "Extended Data Figure 1", "Extended Data Figure 2",
-    "Extended Data Figure 3", "Extended Data Figure 4",
-    "Extended Data Figure 5", "Extended Data Figure 6",
-    "Extended Data Figure 7", "Extended Data Figure 8",
-    "Extended Data Figure 9", "Extended Data Figure 10",
+    "Supplementary Figure 1", "Supplementary Figure 2",
+    "Supplementary Figure 3", "Supplementary Figure 4",
+    "Supplementary Figure 5", "Supplementary Figure 6",
+    "Supplementary Figure 7", "Supplementary Figure 8",
+    "Supplementary Figure 9", "Supplementary Figure 10",
     "Budget Shift (HR 1990)", "Budget (Other Principles)",
     "Net-Zero by Principle", "Net-Zero Summary",
     "Net-Zero Shifts", "Budget Categories", "Group Transitions"
@@ -928,11 +928,11 @@ toc_tabs <- tibble(
     "—",
     "Figure 1", "Figure 2", "Figure 3",
     "Figure 4", "Figure 5", "Figure 6",
-    "Extended Data Figure 1", "Extended Data Figure 2",
-    "Extended Data Figure 3", "Extended Data Figure 4",
-    "Extended Data Figure 5", "Extended Data Figure 6",
-    "Extended Data Figure 7", "Extended Data Figure 8",
-    "Extended Data Figure 9", "Extended Data Figure 10",
+    "Supplementary Figure 1", "Supplementary Figure 2",
+    "Supplementary Figure 3", "Supplementary Figure 4",
+    "Supplementary Figure 5", "Supplementary Figure 6",
+    "Supplementary Figure 7", "Supplementary Figure 8",
+    "Supplementary Figure 9", "Supplementary Figure 10",
     "In-text", "In-text", "In-text", "In-text",
     "In-text", "In-text", "In-text"
   )

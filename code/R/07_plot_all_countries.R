@@ -11,13 +11,13 @@
 #     Scatter: territorial vs consumption-based net-zero emission year,
 #     coloured by economic development (all non-EU countries)
 #
-#   ../results/Graphs/ExtendedDataFigure1.png
+#   ../results/Graphs/SupplementaryFigure1.png
 #     Annual vs cumulative embodied emissions balance, all non-EU countries
 #
-#   ../results/Graphs/ExtendedDataFigure2.png
+#   ../results/Graphs/SupplementaryFigure2.png
 #     Same as Figure 4 but for EU member states
 #
-#   ../results/Graphs/ExtendedDataFigure3–10.png (one per temperature target × country set)
+#   ../results/Graphs/SupplementaryFigure3–10.png (one per temperature target × country set)
 #     Bar charts (national carbon budgets) and point plots (implied net-zero year)
 #
 # The DataForSupplementary data table is written by 08_export.R.
@@ -39,14 +39,14 @@ if (!requireNamespace("legendry", quietly = TRUE)) {
 # Output filename map: old stem → new stem
 figure_stem_map <- c(
   "ResultsCompareTargets1.5All" = "Figure5",
-  "AllCountries1.5"             = "ExtendedDataFigure3",
-  "EUMemberStates1.5"           = "ExtendedDataFigure5",
-  "ResultsCarbonBudgets1.5"     = "ExtendedDataFigure7",
-  "ResultsCarbonBudgets1.5EU"   = "ExtendedDataFigure9",
-  "AllCountries2"               = "ExtendedDataFigure4",
-  "EUMemberStates2"             = "ExtendedDataFigure6",
-  "ResultsCarbonBudgets2"       = "ExtendedDataFigure8",
-  "ResultsCarbonBudgets2EU"     = "ExtendedDataFigure10"
+  "AllCountries1.5"             = "SupplementaryFigure3",
+  "EUMemberStates1.5"           = "SupplementaryFigure5",
+  "ResultsCarbonBudgets1.5"     = "SupplementaryFigure7",
+  "ResultsCarbonBudgets1.5EU"   = "SupplementaryFigure9",
+  "AllCountries2"               = "SupplementaryFigure4",
+  "EUMemberStates2"             = "SupplementaryFigure6",
+  "ResultsCarbonBudgets2"       = "SupplementaryFigure8",
+  "ResultsCarbonBudgets2EU"     = "SupplementaryFigure10"
 )
 figure_path <- function(stem) {
   mapped <- figure_stem_map[stem]
@@ -446,14 +446,14 @@ for (t in c(1.5, 2)) {
 }
 
 # =============================================================================
-# Figure 4 / ExtendedDataFigure2 – scatter coloured by embodied emissions balance
+# Figure 4 / SupplementaryFigure2 – scatter coloured by embodied emissions balance
 # =============================================================================
 # Colour variable:
 #   "Historic Responsibility from 1990" panel → cumulative diff 1990–YearEnd (%)
 #   "Capability" / "Equality" panels   → annual diff at YearEnd (%)
 # Positive = consumption > territorial (net importer of embedded carbon)
 #
-# EmissionsBalance is kept alive after this loop — reused by ExtendedDataFigure1.
+# EmissionsBalance is kept alive after this loop — reused by SupplementaryFigure1.
 
 .ew_balance <- DataGlobalCarbonBudget %>%
   filter(Year %in% 1990:YearEnd,
@@ -516,7 +516,7 @@ for (country_set in c("All", "EU")) {
     ))
 
   clim_upper <- ceiling(max(PlotDataBalance$ColorVar, na.rm = TRUE) / 10) * 10
-  out_name   <- if (is_eu) "ExtendedDataFigure2" else "Figure4"
+  out_name   <- if (is_eu) "SupplementaryFigure2" else "Figure4"
 
   p <- ggplot(PlotDataBalance) +
     geom_abline(intercept = 0, slope = 1, color = "gray") +
@@ -574,7 +574,7 @@ for (country_set in c("All", "EU")) {
 }
 
 # =============================================================================
-# ExtendedDataFigure1 – annual vs cumulative embodied emissions balance
+# SupplementaryFigure1 – annual vs cumulative embodied emissions balance
 # =============================================================================
 # x: annual consumption−territorial difference at YearEnd (%)
 # y: cumulative consumption−territorial difference 1990–YearEnd (%)
@@ -604,7 +604,7 @@ DataEmDiff <- EmissionsBalance %>%
 
 rm(EmissionsBalance)
 
-ExtendedDataFigure1 <- ggplot(
+SupplementaryFigure1 <- ggplot(
   DataEmDiff,
   aes(x = EmissionsDiff_Pct, y = CumEmissionsDiff_Pct, color = EconDevelopment)
 ) +
@@ -642,6 +642,6 @@ ExtendedDataFigure1 <- ggplot(
     panel.grid.minor = element_blank()
   )
 
-ggsave("../results/Graphs/ExtendedDataFigure1.png", ExtendedDataFigure1, width = 88, height = 105, units = "mm", dpi = 500)
-ggsave("../results/Graphs/ExtendedDataFigure1.pdf", ExtendedDataFigure1, width = 88, height = 105, units = "mm")
-message("Written: ../results/Graphs/ExtendedDataFigure1.png / .pdf")
+ggsave("../results/Graphs/SupplementaryFigure1.png", SupplementaryFigure1, width = 88, height = 105, units = "mm", dpi = 500)
+ggsave("../results/Graphs/SupplementaryFigure1.pdf", SupplementaryFigure1, width = 88, height = 105, units = "mm")
+message("Written: ../results/Graphs/SupplementaryFigure1.png / .pdf")
