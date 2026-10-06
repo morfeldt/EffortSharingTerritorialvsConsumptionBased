@@ -5,7 +5,9 @@
 .DS_Store
 .quarto
 .claude/
-output/
+results/
 data/
-old/
 ppt_plots.R
+environment/
+metadata/
+.codeocean/
