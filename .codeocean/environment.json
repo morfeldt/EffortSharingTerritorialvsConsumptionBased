@@ -1,0 +1,65 @@
+{
+	"version": 1,
+	"base_image": "registry.codeocean.com/codeocean/py-r:python3.12.8-R4.4.2-JupyterLab4.3.5-RStudiorstudio-server-2024.12.1-563-ubuntu22.04",
+	"options": {},
+	"installers": {
+		"pip": {
+			"packages": [
+				{
+					"name": "pandas"
+				},
+				{
+					"name": "pyam-iamc"
+				}
+			],
+			"options": {},
+			"pre_install_options": {}
+		},
+		"rcran": {
+			"packages": [
+				{
+					"name": "tidyverse",
+					"version": "2.0.0"
+				},
+				{
+					"name": "doParallel",
+					"version": "1.0.17"
+				},
+				{
+					"name": "ggforce",
+					"version": "0.5.0"
+				},
+				{
+					"name": "ggh4x",
+					"version": "0.3.1"
+				},
+				{
+					"name": "ggrepel",
+					"version": "0.9.8"
+				},
+				{
+					"name": "legendry",
+					"version": "0.3.0"
+				},
+				{
+					"name": "openxlsx",
+					"version": "4.2.9"
+				},
+				{
+					"name": "scico",
+					"version": "1.5.0"
+				},
+				{
+					"name": "wbstats",
+					"version": "1.2"
+				},
+				{
+					"name": "readxl"
+				},
+				{
+					"name": "httr2"
+				}
+			]
+		}
+	}
+}
