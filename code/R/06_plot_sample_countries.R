@@ -2,16 +2,16 @@
 # 06_plot_sample_countries.R  –  Sample-country figures
 # =============================================================================
 # Produces:
-#   output/Graphs/Figure1.png  – Fig. 1: national carbon budgets across
+#   ../results/Graphs/Figure1.png  – Fig. 1: national carbon budgets across
 #                                         the full accounting spectrum
-#   output/Graphs/Figure2.png  – Fig. 2: implied net-zero emission years
-#   output/Graphs/Figure3.png  – Fig. 3: per-capita emission trends
+#   ../results/Graphs/Figure2.png  – Fig. 2: implied net-zero emission years
+#   ../results/Graphs/Figure3.png  – Fig. 3: per-capita emission trends
 #
 # Figures 1 and 2 show both temperature targets (1.5 °C and 2 °C) as two
 # rows of panels, with countries as columns.
 # =============================================================================
 
-dir.create("output/Graphs", recursive = TRUE, showWarnings = FALSE)
+dir.create("../results/Graphs", recursive = TRUE, showWarnings = FALSE)
 
 SampleCountries <- c("China", "European Union", "South Africa", "Sweden", "United States")
 
@@ -104,8 +104,8 @@ Figure1 <- ggplot(DataBudgetSample) +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 0.5,
                                    color = "black"))
 
-ggsave("output/Graphs/Figure1.png", Figure1, width = 180, height = 102, units = "mm", dpi = 500)
-ggsave("output/Graphs/Figure1.pdf", Figure1, width = 180, height = 102, units = "mm")
+ggsave("../results/Graphs/Figure1.png", Figure1, width = 180, height = 102, units = "mm", dpi = 500)
+ggsave("../results/Graphs/Figure1.pdf", Figure1, width = 180, height = 102, units = "mm")
 
 # -----------------------------------------------------------------------------
 # Fig. 2 – Implied net-zero years for sample countries
@@ -149,8 +149,8 @@ Figure2 <- ggplot(DataSampleCountries) +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 0.5,
                                    color = "black"))
 
-ggsave("output/Graphs/Figure2.png", Figure2, width = 180, height = 102, units = "mm", dpi = 500)
-ggsave("output/Graphs/Figure2.pdf", Figure2, width = 180, height = 102, units = "mm")
+ggsave("../results/Graphs/Figure2.png", Figure2, width = 180, height = 102, units = "mm", dpi = 500)
+ggsave("../results/Graphs/Figure2.pdf", Figure2, width = 180, height = 102, units = "mm")
 
 # -----------------------------------------------------------------------------
 # Fig. 3 – Per-capita emission trends (historical)
@@ -232,5 +232,5 @@ Figure3 <- ggplot(DataTrends) +
     axis.text        = element_text(color = "black")
   )
 
-ggsave("output/Graphs/Figure3.png", Figure3, width = 180, height = 61, units = "mm", dpi = 500)
-ggsave("output/Graphs/Figure3.pdf", Figure3, width = 180, height = 61, units = "mm")
+ggsave("../results/Graphs/Figure3.png", Figure3, width = 180, height = 61, units = "mm", dpi = 500)
+ggsave("../results/Graphs/Figure3.pdf", Figure3, width = 180, height = 61, units = "mm")

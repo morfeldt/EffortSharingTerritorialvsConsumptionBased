@@ -76,7 +76,7 @@ DataGlobalCarbonBudgetGlobal <- read_excel(
 # All country name overrides and manually added entities (EU aggregate, Taiwan)
 # are applied in-code after loading so all canonical-name adjustments are
 # in one place.
-WB_CLASSIF_CACHE <- "data/wb_classif.csv"
+WB_CLASSIF_CACHE <- "../data/wb_classif.csv"
 
 if (file.exists(WB_CLASSIF_CACHE)) {
   message(sprintf("Reading World Bank classifications from %s ...", WB_CLASSIF_CACHE))
@@ -124,7 +124,7 @@ DataWorldBankClassif <- DataWorldBankClassif %>%
 #
 # Downloaded data is cached to data/un_population.csv. Delete this file to
 # force a fresh download.
-UN_POP_CACHE <- "data/un_population.csv"
+UN_POP_CACHE <- "../data/un_population.csv"
 
 fetch_un_population <- function(start_year = YearStart, end_year = YearEnd,
                                 sex_id = 3, variant_id = 4) {
@@ -253,7 +253,7 @@ interpolate_ssp_annual <- function(df) {
 
 message("Reading SSP data from data/ssp_data.csv ...")
 
-DataSSPRaw <- read_csv("data/ssp_data.csv", show_col_types = FALSE) %>%
+DataSSPRaw <- read_csv("../data/ssp_data.csv", show_col_types = FALSE) %>%
   rename_with(str_to_title)   # model → Model, region → Region, etc.
 
 # Validate SSP model selections against available models in the data

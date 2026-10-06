@@ -986,6 +986,6 @@ setRowHeights(wb, "Contents",
 # =============================================================================
 # Save
 # =============================================================================
-out_path <- "output/SupplementaryData.xlsx"
+out_path <- "../results/SupplementaryData.xlsx"
 saveWorkbook(wb, out_path, overwrite = TRUE)
 message("Written: ", out_path)

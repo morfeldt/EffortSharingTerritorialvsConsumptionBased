@@ -12,10 +12,10 @@
 #   "Net-zero after 2100"  : NationalCarbonBudget > 0  AND  ImplicitNetZero > 2100
 #   "Negative budget"      : NationalCarbonBudget ≤ 0
 #
-# Output: output/Graphs/Figure6.png
+# Output: ../results/Graphs/Figure6.png
 # =============================================================================
 
-dir.create("output/Graphs", recursive = TRUE, showWarnings = FALSE)
+dir.create("../results/Graphs", recursive = TRUE, showWarnings = FALSE)
 
 # ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -225,6 +225,6 @@ Figure6 <- ggplot(DataPS,
     panel.spacing.y   = unit(0.4, "cm")
   )
 
-ggsave("output/Graphs/Figure6.png", Figure6, width = 180, height = 130, units = "mm", dpi = 500)
-ggsave("output/Graphs/Figure6.pdf", Figure6, width = 180, height = 130, units = "mm")
-message("Written: output/Graphs/Figure6.png / .pdf")
+ggsave("../results/Graphs/Figure6.png", Figure6, width = 180, height = 130, units = "mm", dpi = 500)
+ggsave("../results/Graphs/Figure6.pdf", Figure6, width = 180, height = 130, units = "mm")
+message("Written: ../results/Graphs/Figure6.png / .pdf")

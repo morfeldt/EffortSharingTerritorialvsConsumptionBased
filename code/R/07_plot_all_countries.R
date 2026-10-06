@@ -3,27 +3,27 @@
 # =============================================================================
 # Produces:
 #
-#   output/Graphs/Figure4.png
+#   ../results/Graphs/Figure4.png
 #     Scatter: territorial vs consumption-based net-zero emission year,
 #     coloured by embodied emissions balance (all non-EU countries)
 #
-#   output/Graphs/Figure5.png
+#   ../results/Graphs/Figure5.png
 #     Scatter: territorial vs consumption-based net-zero emission year,
 #     coloured by economic development (all non-EU countries)
 #
-#   output/Graphs/ExtendedDataFigure1.png
+#   ../results/Graphs/ExtendedDataFigure1.png
 #     Annual vs cumulative embodied emissions balance, all non-EU countries
 #
-#   output/Graphs/ExtendedDataFigure2.png
+#   ../results/Graphs/ExtendedDataFigure2.png
 #     Same as Figure 4 but for EU member states
 #
-#   output/Graphs/ExtendedDataFigure3–10.png (one per temperature target × country set)
+#   ../results/Graphs/ExtendedDataFigure3–10.png (one per temperature target × country set)
 #     Bar charts (national carbon budgets) and point plots (implied net-zero year)
 #
 # The DataForSupplementary data table is written by 08_export.R.
 # =============================================================================
 
-dir.create("output/Graphs", recursive = TRUE, showWarnings = FALSE)
+dir.create("../results/Graphs", recursive = TRUE, showWarnings = FALSE)
 
 # -----------------------------------------------------------------------------
 # Use legendry for nested y-axis (country + economic development group).
@@ -50,7 +50,7 @@ figure_stem_map <- c(
 )
 figure_path <- function(stem) {
   mapped <- figure_stem_map[stem]
-  sprintf("output/Graphs/%s.png", if (!is.na(mapped)) mapped else stem)
+  sprintf("../results/Graphs/%s.png", if (!is.na(mapped)) mapped else stem)
 }
 pdf_path <- function(p) sub("\\.png$", ".pdf", p)
 
@@ -568,9 +568,9 @@ for (country_set in c("All", "EU")) {
       strip.text       = element_text(color = "white")
     )
 
-  ggsave(sprintf("output/Graphs/%s.png", out_name), p, width = 180, height = 135, units = "mm", dpi = 300)
-  ggsave(sprintf("output/Graphs/%s.pdf", out_name), p, width = 180, height = 135, units = "mm")
-  message(sprintf("Written: output/Graphs/%s.png / .pdf", out_name))
+  ggsave(sprintf("../results/Graphs/%s.png", out_name), p, width = 180, height = 135, units = "mm", dpi = 300)
+  ggsave(sprintf("../results/Graphs/%s.pdf", out_name), p, width = 180, height = 135, units = "mm")
+  message(sprintf("Written: ../results/Graphs/%s.png / .pdf", out_name))
 }
 
 # =============================================================================
@@ -642,6 +642,6 @@ ExtendedDataFigure1 <- ggplot(
     panel.grid.minor = element_blank()
   )
 
-ggsave("output/Graphs/ExtendedDataFigure1.png", ExtendedDataFigure1, width = 88, height = 105, units = "mm", dpi = 500)
-ggsave("output/Graphs/ExtendedDataFigure1.pdf", ExtendedDataFigure1, width = 88, height = 105, units = "mm")
-message("Written: output/Graphs/ExtendedDataFigure1.png / .pdf")
+ggsave("../results/Graphs/ExtendedDataFigure1.png", ExtendedDataFigure1, width = 88, height = 105, units = "mm", dpi = 500)
+ggsave("../results/Graphs/ExtendedDataFigure1.pdf", ExtendedDataFigure1, width = 88, height = 105, units = "mm")
+message("Written: ../results/Graphs/ExtendedDataFigure1.png / .pdf")

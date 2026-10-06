@@ -15,8 +15,8 @@
 # Files must be placed in the data/ directory.
 # Download from: https://globalcarbonbudget.org/datahub/
 
-GCB_NATIONAL_FILE <- "data/National_Fossil_Carbon_Emissions_2025_v0.3.xlsx"
-GCB_GLOBAL_FILE   <- "data/Global_Carbon_Budget_2025_v0.6.xlsx"
+GCB_NATIONAL_FILE <- "../data/National_Fossil_Carbon_Emissions_2025_v0.3.xlsx"
+GCB_GLOBAL_FILE   <- "../data/Global_Carbon_Budget_2025_v0.6.xlsx"
 
 # ─── Pre-flight checks ────────────────────────────────────────────────────────
 
@@ -38,7 +38,7 @@ if (!file.exists(GCB_GLOBAL_FILE))
     "  at the top of R/00_setup.R.", sep = "\n"))
 
 # 2. UN Population data (only needed on first run; cached afterwards)
-if (!file.exists("data/un_population.csv") &&
+if (!file.exists("../data/un_population.csv") &&
     nchar(trimws(Sys.getenv("UN_POP_TOKEN"))) == 0)
   .problems <- c(.problems, paste(
     "MISSING: UN Population API token (needed for first run only).",
@@ -50,7 +50,7 @@ if (!file.exists("data/un_population.csv") &&
     "  data/un_population.csv and the token is no longer needed.", sep = "\n"))
 
 # 3. SSP scenario data
-if (!file.exists("data/ssp_data.csv"))
+if (!file.exists("../data/ssp_data.csv"))
   .problems <- c(.problems, paste(
     "MISSING: data/ssp_data.csv",
     "  Run the following to download SSP scenario data:",
